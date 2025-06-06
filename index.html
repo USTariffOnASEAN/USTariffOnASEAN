@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>3D ASEAN Maps + Full‐Width Vertical Dumbbell Chart (with Filters)</title>
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+
+  <!-- Mapbox GL JS CSS -->
+  <link
+    href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css"
+    rel="stylesheet"
+  />
+
+  <!-- PapaParse for CSV parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+
+  <!-- Highcharts + Highcharts‐more + Dumbbell module -->
+  <script src="https://code.highcharts.com/highcharts.js"></script>
+  <script src="https://code.highcharts.com/highcharts-more.js"></script>
+  <script src="https://code.highcharts.com/modules/dumbbell.js"></script>
+
+  <style>
+    /* ───────────────────────────────────────────────────────────────── */
+    /* Reset body/html so nothing scrolls unexpectedly                 */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background: #f0f0f0;
+    }
+
+    /* ───────────────────────────────────────────────────────────────── */
+    /* Dropdowns (Scenario, Country, Sector) at top‐left                */
+    #scenarioSelector {
+      position: relative;
+      top: 10px;
+      z-index: 2;
+      background: white;
+      padding: 6px 10px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-left: 2%;
+      margin-right: 10px;
+      outline: none;
+    }
+    #countrySelector,
+    #sectorSelector {
+      position: relative;
+      top: 10px;
+      z-index: 2;
+      background: white;
+      padding: 6px 10px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-right: 10px;
+      outline: none;
+    }
+
+    /* ───────────────────────────────────────────────────────────────── */
+    /* Shared “card” style for map‐boxes and chart‐box                   */
+    .map-box,
+    .chart-box {
+      position: absolute;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+
+    /* ───────────────────────────────────────────────────────────────── */
+    /* Left map: 50px down, 2% left, 47.2% width, 45% height              */
+    .map-box.left {
+      top: 50px;
+      left: 2%;
+      width: 47.2%;
+      height: 45%;
+    }
+
+    /* ───────────────────────────────────────────────────────────────── */
+    /* Right map: 50px down, 51% left, 47.2% width, 45% height           */
+    .map-box.right {
+      top: 50px;
+      left: 51%;
+      width: 47.2%;
+      height: 45%;
+    }
+
+    /* ───────────────────────────────────────────────────────────────── */
+    /* Chart box: placed just under maps (50px + 45% + 10px gap),
+       spans left:2% → right:98.2%, height 45%                           */
+    .chart-box.left {
+      top: calc(50px + 45% + 10px);
+      left: 2%;
+      width: 96.2%;
+      height: 45%;
+    }
+
+    /* ───────────────────────────────────────────────────────────────── */
+    /* Title bar inside each “card”                                       */
+    .map-title {
+      height: 32px;
+      line-height: 32px;
+      font-weight: bold;
+      font-size: 15px;
+      padding-left: 12px;
+      background: #f9f9f9;
+      border-bottom: 1px solid #ddd;
+      color: #333;
+      box-sizing: border-box;
+    }
+
+    /* ───────────────────────────────────────────────────────────────── */
+    /* Container for map/chart—fills the area under the title bar         */
+    .map-inner {
+      width: 100%;
+      height: calc(100% - 32px);
+      position: relative;
+    }
+
+    /* ───────────────────────────────────────────────────────────────── */
+    /* Hide Mapbox attribution & logo (optional)                          */
+    .mapboxgl-ctrl-logo,
+    .mapboxgl-ctrl-attrib {
+      display: none !important;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- 1) SCENARIO dropdown -->
+  <select id="scenarioSelector">
+    <option value="Scenario 1">Scenario 1</option>
+    <option value="Scenario 2">Scenario 2</option>
+  </select>
+
+  <!-- 2) COUNTRY dropdown -->
+  <select id="countrySelector">
+    <option value="All" selected>All Countries</option>
+  </select>
+
+  <!-- 3) SECTOR dropdown -->
+  <select id="sectorSelector">
+    <option value="All" selected>All Sectors</option>
+  </select>
+
+  <!-- Left map box -->
+  <div class="map-box left">
+    <div class="map-title">USA current imports from ASEAN, 2024</div>
+    <div id="map" class="map-inner"></div>
+  </div>
+
+  <!-- Right map box -->
+  <div class="map-box right">
+    <div class="map-title">USA estimated imports from ASEAN (after tariff)</div>
+    <div id="map2" class="map-inner"></div>
+  </div>
+
+  <!-- Full‐width chart box under both maps -->
+  <div class="chart-box left">
+    <div class="map-title">Average MinAve vs. New Tariff by HS2_Code (%)</div>
+    <div id="chart1" class="map-inner"></div>
+  </div>
+
+  <!-- Mapbox GL JS -->
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+
+  <script>
+    mapboxgl.accessToken = 'pk.eyJ1IjoiYmhvbGVlIiwiYSI6ImNrN2tibG9pNzAwajMzbWw4ZnlpcDNqY2wifQ.o-qJAmRdkh-McoubI4E2DA';
+
+    // URLs for GeoJSON and CSV
+    const GEOJSON_URL = 'https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson';
+    const CSV_URL     = 'https://raw.githubusercontent.com/USTariffOnASEAN/USTariffOnASEAN/main/USTARIFF.csv';
+
+    // We'll store parsed rows here so buildDumbbellChart can access them
+    let rowsForChart = [];
+
+    // 1) Load GeoJSON + CSV in parallel
+    Promise.all([
+      fetch(GEOJSON_URL).then(r => r.json()),
+      fetch(CSV_URL).then(r => r.text())
+    ])
+    .then(([countriesGeoJSON, csvText]) => {
+      processDataAndBuildMap(countriesGeoJSON, csvText);
+      // After initializing maps, immediately build the chart with initial data:
+      buildDumbbellChart(rowsForChart);
+    })
+    .catch(err => {
+      console.error('Error loading data:', err);
+      alert('Failed to load GeoJSON or CSV. Check console.');
+    });
+
+    function processDataAndBuildMap(countriesGeoJSON, csvText) {
+      // 2) Parse the CSV with PapaParse
+      const parsed = Papa.parse(csvText, {
+        header: true,
+        skipEmptyLines: true,
+        dynamicTyping: true
+      });
+      const rows = parsed.data;
+      rowsForChart = rows; // make available for the dumbbell builder
+
+      // 3) Detect column names used by maps:
+      //    ISO3, primaryValue_x, scenario, estimated_imports, country, sector
+      const sampleRow = rows[0] || {};
+      const colNames  = Object.keys(sampleRow);
+      let isoKey = null, valueKey = null, scenarioKey = null,
+          importsKey = null, countryKey = null, sectorKey = null;
+      colNames.forEach(key => {
+        const lc = key.toLowerCase();
+        if (lc.includes('iso3'))         isoKey      = key;
+        if (lc.includes('primaryvalue')) valueKey    = key;
+        if (lc.includes('scenario'))     scenarioKey = key;
+        if (lc === 'estimated_imports')  importsKey  = key;
+        if (lc.includes('country'))      countryKey  = key;
+        if (lc.includes('sector'))       sectorKey   = key;
+      });
+      if (!isoKey || !valueKey || !scenarioKey || !importsKey || !countryKey || !sectorKey) {
+        console.warn('Missing one of ISO3 / primaryValue_x / scenario / estimated_imports / country / sector in CSV.');
+      }
+
+      // 4) Build sorted sets of unique countries & sectors
+      const countrySet = new Set();
+      const sectorSet  = new Set();
+      rows.forEach(r => {
+        const c = r[countryKey]; if (c) countrySet.add(String(c).trim());
+        const s = r[sectorKey]; if (s) sectorSet.add(String(s).trim());
+      });
+      const uniqueCountries = Array.from(countrySet).sort((a,b) => a.localeCompare(b));
+      const uniqueSectors   = Array.from(sectorSet).sort((a,b) => a.localeCompare(b));
+
+      // 5) Populate countrySelector
+      const countrySelector = document.getElementById('countrySelector');
+      uniqueCountries.forEach(cn => {
+        const opt = document.createElement('option');
+        opt.value = cn;
+        opt.text  = cn;
+        countrySelector.appendChild(opt);
+      });
+
+      // 6) Populate sectorSelector
+      const sectorSelector = document.getElementById('sectorSelector');
+      uniqueSectors.forEach(sn => {
+        const opt = document.createElement('option');
+        opt.value = sn;
+        opt.text  = sn;
+        sectorSelector.appendChild(opt);
+      });
+
+      // 7) Prepare aggregation structures for the 3D maps
+      let aggregatesValue   = { 'Scenario 1': {}, 'Scenario 2': {} };
+      let aggregatesImports = { 'Scenario 1': {}, 'Scenario 2': {} };
+      let maxVal1 = 0, maxVal2 = 0, maxImp1 = 0, maxImp2 = 0;
+
+      function recomputeAggregates() {
+        aggregatesValue   = { 'Scenario 1': {}, 'Scenario 2': {} };
+        aggregatesImports = { 'Scenario 1': {}, 'Scenario 2': {} };
+        maxVal1 = maxVal2 = maxImp1 = maxImp2 = 0;
+
+        const selCountry = getSelectedCountry();
+        const selSector  = getSelectedSector();
+
+        rows.forEach(r => {
+          const rawIso = r[isoKey];
+          if (!rawIso) return;
+
+          const rCountry = String(r[countryKey]).trim();
+          const rSector  = String(r[sectorKey]).trim();
+          // apply country/sector filters
+          if (selCountry !== 'All' && rCountry !== selCountry) return;
+          if (selSector  !== 'All' && rSector  !== selSector)  return;
+
+          const iso = String(rawIso).trim().toUpperCase();
+          const scn = String(r[scenarioKey]).trim();
+          if (scn !== 'Scenario 1' && scn !== 'Scenario 2') return;
+
+          // primaryValue_x
+          const vRaw = parseFloat(r[valueKey]);
+          const v    = isNaN(vRaw) ? 0 : vRaw;
+          aggregatesValue[scn][iso] = (aggregatesValue[scn][iso] || 0) + v;
+          if (scn === 'Scenario 1' && aggregatesValue[scn][iso] > maxVal1) maxVal1 = aggregatesValue[scn][iso];
+          if (scn === 'Scenario 2' && aggregatesValue[scn][iso] > maxVal2) maxVal2 = aggregatesValue[scn][iso];
+
+          // estimated_imports
+          const iRaw = parseFloat(r[importsKey]);
+          const i    = isNaN(iRaw) ? 0 : iRaw;
+          aggregatesImports[scn][iso] = (aggregatesImports[scn][iso] || 0) + i;
+          if (scn === 'Scenario 1' && aggregatesImports[scn][iso] > maxImp1) maxImp1 = aggregatesImports[scn][iso];
+          if (scn === 'Scenario 2' && aggregatesImports[scn][iso] > maxImp2) maxImp2 = aggregatesImports[scn][iso];
+        });
+
+        // Write aggregated values back into GeoJSON properties
+        countriesGeoJSON.features.forEach(feature => {
+          const geoIso = feature.properties['ISO3166-1-Alpha-3']
+                         ? feature.properties['ISO3166-1-Alpha-3'].trim().toUpperCase()
+                         : null;
+          feature.properties.value1   = aggregatesValue['Scenario 1'][geoIso] || 0;
+          feature.properties.value2   = aggregatesValue['Scenario 2'][geoIso] || 0;
+          feature.properties.imports1 = aggregatesImports['Scenario 1'][geoIso] || 0;
+          feature.properties.imports2 = aggregatesImports['Scenario 2'][geoIso] || 0;
+        });
+      }
+
+      // Initial aggregation
+      recomputeAggregates();
+
+      // ────────────────────────────────────────────────────────────────────
+      // Build Map 1 (left)
+      // ────────────────────────────────────────────────────────────────────
+      const map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/light-v11',
+        center: [122.7289777362036, 1.4608357942721568],
+        zoom: 3.6514121880681563,
+        pitch: 60,
+        bearing: -10,
+        projection: 'mercator'
+      });
+
+      map.on('load', () => {
+        // Add GeoJSON source
+        map.addSource('countries-with-values', {
+          type: 'geojson',
+          data: countriesGeoJSON
+        });
+
+        // Fixed ASEAN country names
+        const ASEAN_NAMES = [
+          'Brunei','Cambodia','Indonesia','Laos','Malaysia',
+          'Myanmar','Philippines','Singapore','Thailand','Viet Nam'
+        ];
+
+        // Extrusion layer (initially filtered to all ASEAN)
+        map.addLayer({
+          id: 'asean-3d-extrusion',
+          type: 'fill-extrusion',
+          source: 'countries-with-values',
+          filter: ['match',['get','name'],ASEAN_NAMES,true,false],
+          paint: {
+            'fill-extrusion-height': [
+              'match',
+              ['get','name'],
+              'Brunei',   68000,
+              'Cambodia', 72000,
+              'Indonesia',85000,
+              'Laos',     67000,
+              'Malaysia', 78000,
+              'Myanmar',  71000,
+              'Philippines',74000,
+              'Singapore',69000,
+              'Thailand', 82000,
+              'Viet Nam', 80000,
+              /* default */ 0
+            ],
+            'fill-extrusion-base': 0,
+            // placeholder—overwritten by updateAllFilters()
+            'fill-extrusion-color': [
+              'interpolate',['linear'],['get','value1'],
+              0, '#f2f0f7',
+              maxVal1/4, '#cbc9e2',
+              maxVal1/2, '#9e9ac8',
+              (3*maxVal1)/4, '#6a51a3',
+              maxVal1, '#3f007d'
+            ],
+            'fill-extrusion-opacity': 0.9
+          }
+        });
+
+        map.setLight({
+          anchor: 'viewport',
+          color: 'white',
+          intensity: 0.6,
+          position: [1.5, 90, 40]
+        });
+
+        // Hover popup on left map
+        const popup = new mapboxgl.Popup({
+          closeButton: false,
+          closeOnClick: false
+        });
+        map.on('mousemove','asean-3d-extrusion',(e) => {
+          map.getCanvas().style.cursor = 'pointer';
+          const f  = e.features[0];
+          const cn = f.properties.name;
+          const sc = document.getElementById('scenarioSelector').value;
+          const dispVal = (sc === 'Scenario 1') ? f.properties.value1 : f.properties.value2;
+          popup
+            .setLngLat(e.lngLat)
+            .setHTML(`<strong>${cn}</strong><br>${sc} Value: ${dispVal.toLocaleString()}`)
+            .addTo(map);
+        });
+        map.on('mouseleave','asean-3d-extrusion',() => {
+          map.getCanvas().style.cursor = '';
+          popup.remove();
+        });
+
+        // ────────────────────────────────────────────────────────────────────
+        // Build Map 2 (right)
+        // ────────────────────────────────────────────────────────────────────
+        const map2 = new mapboxgl.Map({
+          container: 'map2',
+          style: 'mapbox://styles/mapbox/light-v11',
+          center: [122.7289777362036, 1.4608357942721568],
+          zoom: 3.6514121880681563,
+          pitch: 60,
+          bearing: -10,
+          projection: 'mercator'
+        });
+
+        map2.on('load', () => {
+          map2.addSource('countries-with-values', {
+            type: 'geojson',
+            data: countriesGeoJSON
+          });
+
+          map2.addLayer({
+            id: 'asean-3d-extrusion-2',
+            type: 'fill-extrusion',
+            source: 'countries-with-values',
+            filter: ['match',['get','name'],ASEAN_NAMES,true,false],
+            paint: {
+              'fill-extrusion-height': [
+                'match',
+                ['get','name'],
+                'Brunei',   68000,
+                'Cambodia', 72000,
+                'Indonesia',85000,
+                'Laos',     67000,
+                'Malaysia', 78000,
+                'Myanmar',  71000,
+                'Philippines',74000,
+                'Singapore',69000,
+                'Thailand', 82000,
+                'Viet Nam', 80000,
+                /* default */ 0
+              ],
+              'fill-extrusion-base': 0,
+              // placeholder—overwritten in updateAllFilters()
+              'fill-extrusion-color': [
+                'interpolate',['linear'],['get','imports1'],
+                0, '#f2f0f7',
+                maxImp1/4, '#cbc9e2',
+                maxImp1/2, '#9e9ac8',
+                (3*maxImp1)/4, '#6a51a3',
+                maxImp1, '#3f007d'
+              ],
+              'fill-extrusion-opacity': 0.9
+            }
+          });
+
+          map2.setLight({
+            anchor: 'viewport',
+            color: 'white',
+            intensity: 0.6,
+            position: [1.5, 90, 40]
+          });
+
+          const popup2 = new mapboxgl.Popup({
+            closeButton: false,
+            closeOnClick: false
+          });
+          map2.on('mousemove','asean-3d-extrusion-2',(e) => {
+            map2.getCanvas().style.cursor = 'pointer';
+            const f  = e.features[0];
+            const cn = f.properties.name;
+            const sc = document.getElementById('scenarioSelector').value;
+            const dispVal = (sc === 'Scenario 1') ? f.properties.imports1 : f.properties.imports2;
+            popup2
+              .setLngLat(e.lngLat)
+              .setHTML(`<strong>${cn}</strong><br>${sc} Imports: ${dispVal.toLocaleString()}`)
+              .addTo(map2);
+          });
+          map2.on('mouseleave','asean-3d-extrusion-2',() => {
+            map2.getCanvas().style.cursor = '';
+            popup2.remove();
+          });
+
+          // ────────────────────────────────────────────────────────────────────
+          // updateAllFilters(): recompute aggregates, update both maps’ data,
+          // compute unified min/max across BOTH “value” & “import” and apply 
+          // the SAME color ramp to both layers, THEN re‐build the dumbbell chart.
+          // ────────────────────────────────────────────────────────────────────
+          function updateAllFilters() {
+            // 1) Recompute all aggregates
+            recomputeAggregates();
+
+            // 2) Update each GeoJSON source
+            map.getSource('countries-with-values').setData(countriesGeoJSON);
+            map2.getSource('countries-with-values').setData(countriesGeoJSON);
+
+            // 3) Build a filter expression for ASEAN + selected country
+            const selCountry = getSelectedCountry();
+            const ASEAN_NAMES = [
+              'Brunei','Cambodia','Indonesia','Laos','Malaysia',
+              'Myanmar','Philippines','Singapore','Thailand','Viet Nam'
+            ];
+            let countryFilterList;
+            if (selCountry === 'All') {
+              countryFilterList = ASEAN_NAMES;
+            } else {
+              countryFilterList = ASEAN_NAMES.includes(selCountry) ? [selCountry] : [];
+            }
+            const countryFilterExpr = (countryFilterList.length > 0)
+              ? ['match',['get','name'],countryFilterList,true,false]
+              : ['==',['get','name'],'']; // matches nothing if non‐ASEAN chosen
+
+            // 4) Decide which property names to read from GeoJSON for color ramp
+            const sc = document.getElementById('scenarioSelector').value;
+            const valueProp  = (sc === 'Scenario 1' ? 'value1'   : 'value2');
+            const importProp = (sc === 'Scenario 1' ? 'imports1' : 'imports2');
+
+            // 5) Build array of features that pass the filter
+            const filteredFeatures = countriesGeoJSON.features.filter(f =>
+              countryFilterList.includes(f.properties.name)
+            );
+
+            // 6) Find a single min/max across BOTH valueProp & importProp
+            let combinedMin = Infinity, combinedMax = -Infinity;
+            filteredFeatures.forEach(f => {
+              const vRaw = f.properties[valueProp];
+              const iRaw = f.properties[importProp];
+              if (vRaw < combinedMin) combinedMin = vRaw;
+              if (vRaw > combinedMax) combinedMax = vRaw;
+              if (iRaw < combinedMin) combinedMin = iRaw;
+              if (iRaw > combinedMax) combinedMax = iRaw;
+            });
+            if (filteredFeatures.length === 0) {
+              combinedMin = 0;
+              combinedMax = 1;
+            }
+
+            // 7) Update left map’s color ramp
+            map.setPaintProperty(
+              'asean-3d-extrusion',
+              'fill-extrusion-color',
+              [
+                'interpolate',['linear'],['get',valueProp],
+                combinedMin, '#f2f0f7',
+                combinedMax, '#3f007d'
+              ]
+            );
+            map.setFilter('asean-3d-extrusion', countryFilterExpr);
+
+            // 8) Update right map’s color ramp
+            map2.setPaintProperty(
+              'asean-3d-extrusion-2',
+              'fill-extrusion-color',
+              [
+                'interpolate',['linear'],['get',importProp],
+                combinedMin, '#f2f0f7',
+                combinedMax, '#3f007d'
+              ]
+            );
+            map2.setFilter('asean-3d-extrusion-2', countryFilterExpr);
+
+            // 9) Re‐build the dumbbell chart with the same “rowsForChart” but now
+            //    filtered by Scenario, Country, and Sector:
+            buildDumbbellChart(rowsForChart);
+          }
+
+          // 10) Initial paint
+          updateAllFilters();
+
+          // 11) Attach listeners to all three dropdowns
+          document.getElementById('scenarioSelector')
+                  .addEventListener('change', updateAllFilters);
+          document.getElementById('countrySelector')
+                  .addEventListener('change', updateAllFilters);
+          document.getElementById('sectorSelector')
+                  .addEventListener('change', updateAllFilters);
+        }); // end map2.on('load')
+      }); // end map.on('load')
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // buildDumbbellChart(rows):
+    //    Uses Highcharts to create a vertical dumbbell chart in #chart1,
+    //    but first applies the Scenario/Country/Sector filters to “rows”,
+    //    THEN groups by HS2_Code, averages MinAve & new_tariff_new (×100),
+    //    and finally plots them.
+    // ────────────────────────────────────────────────────────────────────
+    function buildDumbbellChart(rows) {
+      if (!rows || rows.length === 0) {
+        // If there are no rows (or chart div is empty), clear any existing chart:
+        Highcharts.chart('chart1', { series: [] });
+        return;
+      }
+
+      // 1) Detect relevant column names inside the CSV’s header:
+      const sample = rows[0];
+      let scenarioKey = null, countryKey = null, sectorKey = null;
+      let hs2Key = null, minAveKey = null, tariffKey = null;
+      Object.keys(sample).forEach(key => {
+        const lc = key.toLowerCase();
+        if (lc.includes('scenario'))     scenarioKey = key;
+        if (lc.includes('country'))      countryKey  = key;
+        if (lc.includes('sector'))       sectorKey   = key;
+        if (lc === 'hs2_code')           hs2Key      = key;
+        if (lc === 'minave')             minAveKey   = key;
+        if (lc === 'new_tariff_new')     tariffKey   = key;
+      });
+      if (!scenarioKey || !countryKey || !sectorKey || !hs2Key || !minAveKey || !tariffKey) {
+        console.warn('Cannot build chart: missing one of scenario, country, sector, HS2_Code, MinAve, or new_tariff_new.');
+        // Clear chart if keys are missing:
+        Highcharts.chart('chart1', { series: [] });
+        return;
+      }
+
+      // 2) Read current filter selections from the DOM:
+      const selScenario = document.getElementById('scenarioSelector').value;
+      const selCountry  = document.getElementById('countrySelector').value;
+      const selSector   = document.getElementById('sectorSelector').value;
+
+      // 3) Apply filters to “rows”:
+      const filteredRows = rows.filter(r => {
+        const sc = String(r[scenarioKey]).trim();
+        const co = String(r[countryKey]).trim();
+        const se = String(r[sectorKey]).trim();
+        if (sc !== selScenario) return false;
+        if (selCountry !== 'All' && co !== selCountry) return false;
+        if (selSector  !== 'All' && se !== selSector)  return false;
+        return true;
+      });
+      if (filteredRows.length === 0) {
+        // If no rows after filtering, clear chart and return
+        Highcharts.chart('chart1', { series: [] });
+        return;
+      }
+
+      // 4) Group the filtered rows by HS2_Code, summing MinAve & tariff, counting entries
+      const grouping = {};
+      filteredRows.forEach(r => {
+        const h2 = r[hs2Key];
+        if (h2 == null) return;
+        const key = String(h2).trim();
+        if (!grouping[key]) grouping[key] = { sumMin: 0, sumTariff: 0, count: 0 };
+
+        const m = parseFloat(r[minAveKey]);
+        const t = parseFloat(r[tariffKey]);
+        if (!isNaN(m)) grouping[key].sumMin += m;
+        if (!isNaN(t)) grouping[key].sumTariff += t;
+        grouping[key].count += 1;
+      });
+
+      // 5) Build a sorted list of HS2 categories and a matching data array
+      const categories = Object.keys(grouping)
+                               .sort((a, b) => {
+                                 const na = parseInt(a, 10), nb = parseInt(b, 10);
+                                 if (!isNaN(na) && !isNaN(nb)) return na - nb;
+                                 return a.localeCompare(b);
+                               });
+
+      const data = categories.map((cat, i) => {
+        const obj = grouping[cat];
+        // Convert decimal → percentage by multiplying by 100:
+        const avgMin    = (obj.sumMin    / obj.count) * 100;
+        const avgTariff = (obj.sumTariff / obj.count) * 100;
+        return { x: i, low: avgMin, high: avgTariff };
+      });
+
+      // 6) Render (or re‐render) Highcharts with filtered data:
+      Highcharts.chart('chart1', {
+        chart: {
+          type: 'dumbbell',
+          inverted: false, // vertical orientation
+          marginTop: 30
+        },
+        title: { text: null },
+        xAxis: {
+          categories: categories,
+          title: { text: 'HS2_Code' },
+          labels: {
+            rotation: -45,
+            style: { fontSize: '12px' }
+          }
+        },
+        yAxis: {
+          title: { text: 'Average (%)' },
+          labels: {
+            formatter: function() {
+              return Math.round(this.value) + '%';
+            }
+          }
+        },
+        tooltip: {
+          shared: true,
+          headerFormat: '<b>HS2_Code: {point.category}</b><br/>',
+          pointFormat: '<span style="color:{series.color}">\u25CF</span> {series.name}: <b>{point.y:.0f}%</b><br/>'
+        },
+        plotOptions: {
+          series: {
+            dataLabels: {
+              enabled: true,
+              formatter: function() {
+                return Math.round(this.y) + '%';
+              }
+            }
+          }
+        },
+        series: [
+          {
+            name: 'MinAve',
+            type: 'scatter', // explicitly scatter
+            data: data.map(pt => ({ x: pt.x, y: pt.low })),
+            color: '#1f77b4', // blue
+            marker: {
+              symbol: 'circle',
+              fillColor: '#1f77b4',
+              lineColor: '#1f77b4',
+              radius: 5
+            }
+          },
+          {
+            name: 'New Tariff',
+            type: 'scatter', // explicitly scatter
+            data: data.map(pt => ({ x: pt.x, y: pt.high })),
+            color: '#d62728', // red
+            marker: {
+              symbol: 'circle',
+              fillColor: '#d62728',
+              lineColor: '#d62728',
+              radius: 5
+            }
+          },
+          {
+            name: '',
+            type: 'dumbbell',
+            data: data.slice(), // each entry { x, low, high }
+            color: '#999999',
+            connector: {
+              width: 1,
+              color: '#999999'
+            },
+            marker: {
+              enabled: false // no extra markers on connector
+            },
+            showInLegend: false,
+            enableMouseTracking: false
+          }
+        ],
+        legend: {
+          align: 'center',
+          verticalAlign: 'top',
+          layout: 'horizontal'
+        },
+        credits: { enabled: false }
+      });
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // Helper functions to read current dropdown values
+    function getSelectedCountry() {
+      const val = document.getElementById('countrySelector').value;
+      return val ? val : 'All';
+    }
+    function getSelectedSector() {
+      const val = document.getElementById('sectorSelector').value;
+      return val ? val : 'All';
+    }
+  </script>
+</body>
+</html>
