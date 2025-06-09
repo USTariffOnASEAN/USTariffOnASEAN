@@ -21,7 +21,7 @@
   <script src="https://code.highcharts.com/highcharts.js"></script>
   <script src="https://code.highcharts.com/highcharts-more.js"></script>
   <script src="https://code.highcharts.com/modules/dumbbell.js"></script>
-
+  <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
     /*─────────────────────────────────────────────────────────────────*/
     /* Allow scrolling on the page (instead of hiding overflow)       */
@@ -41,7 +41,7 @@
     #countrySelector,
     #sectorSelector {
       position: fixed;
-      top: 10px;
+      top: 30px;
       z-index: 1000;
       background: white;
       padding: 6px 10px;
@@ -55,10 +55,42 @@
       left: 2%;
     }
     #countrySelector {
-      left: calc(2% + 120px);
+      left: calc(2% + 165px);
     }
     #sectorSelector {
-      left: calc(2% + 255px);
+      left: calc(2% + 305px);
+    }
+
+    
+    #tradeLossCard {
+      background: #ffffff;
+      padding: 15px 20px;
+      border-radius: 10px;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+      min-width: 200px;
+    }
+
+    #tradeLossCard h4 {
+      margin: 0;
+      font-size: 14px;
+      color: #555;
+    }
+
+    #tradeLossCard p {
+      margin: 5px 0 0;
+      font-size: 22px;
+      font-weight: bold;
+      color: #e63946;
+    }
+
+
+        /*─────────────────────────────────────────────────────────────────*/
+    /* Dumbbell chart under the 3D Bar charts                          */
+    .chart-box.left-under2 {
+     top: 90px;/*calc(360px + 45% + 10px + 45% + 10px);*/
+      left: 2%;
+      width: 96.2%;
+      height: 60%;
     }
 
     /*─────────────────────────────────────────────────────────────────*/
@@ -77,7 +109,7 @@
     /*─────────────────────────────────────────────────────────────────*/
     /* Left map: 50px down, 2% left, 47.2% width, 45% height          */
     .map-box.left {
-      top: 50px;
+      top: calc(90px + 60% + 10px); 
       left: 2%;
       width: 47.2%;
       height: 45%;
@@ -86,7 +118,7 @@
     /*─────────────────────────────────────────────────────────────────*/
     /* Right map: 50px down, 51% left, 47.2% width, 45% height        */
     .map-box.right {
-      top: 50px;
+      top: calc(90px + 60% + 10px); 
       left: 51%;
       width: 47.2%;
       height: 45%;
@@ -97,10 +129,10 @@
     /* These are the exact same properties your original .left-under had,
        except we kept the same top/left/width/height/overflow values.  */
     .chart-box.left-under {
-      top: calc(50px + 45% + 10px); /* 50px + 45% map height + 10px gap */
+      top: calc(340px + 60% + 200px); /* 50px + 45% map height + 10px gap */
       left: 2%;
       width: 47.2%;
-      height: 75%;
+      height: 50%;
       overflow: visible;
     }
 
@@ -108,22 +140,105 @@
     /* 3D Bar chart UNDER the RIGHT map (ESTIMATED)                    */
     /* This is exactly your original left-under CSS, but moved to 51%. */
     .chart-box.right-under {
-      top: calc(50px + 45% + 10px); /* same vertical offset as left-under */
+      top: calc(340px + 60% + 200px); /* same vertical offset as left-under */
       left: 51%;
       width: 47.2%;
-      height: 75%;
+      height: 50%;
       overflow: visible;
     }
 
-    /*─────────────────────────────────────────────────────────────────*/
-    /* Dumbbell chart under the 3D Bar charts                          */
-    .chart-box.left-under2 {
-     top: calc(360px + 45% + 10px + 45% + 10px);
-      left: 2%;
-      width: 96.2%;
-      height: 60%;
-    }
+    /* Trade Loss Card Styles */
+#tradeLossCard {
+  position:absolute ;
+  top: 10px;
+  left: 600px;
+  z-index: 1000;
+  background: #ffffff;
+  padding: 15px 20px;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+  min-width: 100px;
+  display: block; /* Ensure it's visible */
+}
 
+#tradeLossCard h4 {
+  margin: 0;
+  font-size: 12px;
+  color: #555;
+}
+
+#tradeLossCard p {
+  margin: 2px 0 0;
+  font-size: 16px;
+  font-weight: bold;
+  color: #e63946;
+}
+/* Treemap container styles */
+.chart-box.treemap-container,
+.chart-box.treemap-container-right{
+  top: calc(90px + 60% + 10px + 45% + 10px + 50% + 10px);
+  left: 2%;
+  width: 47.2%;
+  height: 45%;
+   overflow: hidden; 
+}
+
+/* D3 Treemap specific styles */
+#treemapChart {
+  width: 100%;
+  height: 100%;
+  font-family: Arial, sans-serif;
+  position: relative; 
+}
+
+.treemap-rect {
+  stroke: #fff;
+  stroke-width: 1px; 
+}
+/* Second Treemap container styles */
+.chart-box.treemap-container-right {
+  top: calc(90px + 60% + 10px + 45% + 10px + 50% + 10px);
+  left: 51%;
+  width: 47.2%;
+  height: 45%;
+}
+
+/* Improved Treemap text styles */
+.treemap-text {
+  font-size: 10px;
+  fill: #333;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.treemap-text tspan {
+  font-size: 10px;
+}
+
+/* Darker text for lighter backgrounds */
+.treemap-rect[fill="#c3ffff"] ~ .treemap-text,
+.treemap-rect[fill="#8be2f2"] ~ .treemap-text,
+.treemap-rect[fill="#54c3ea"] ~ .treemap-text {
+  fill: #333;
+}
+
+/* Lighter text for darker backgrounds */
+.treemap-rect[fill="#1ca2e0"] ~ .treemap-text,
+.treemap-rect[fill="#0291da"] ~ .treemap-text {
+  fill: white;
+}
+/* Tooltip styles */
+.tooltip {
+  position: absolute;
+  background: white;
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  pointer-events: none;
+  font-size: 16px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
     /*─────────────────────────────────────────────────────────────────*/
     /* Title bar inside each “card”                                     */
     .map-title {
@@ -167,8 +282,8 @@
 <body>
   <!-- 1) SCENARIO dropdown -->
   <select id="scenarioSelector">
-    <option value="Scenario 1">Scenario 1</option>
-    <option value="Scenario 2">Scenario 2</option>
+    <option value="Scenario 1">Tariffs in effect</option>
+    <option value="Scenario 2">Tariffs threatened</option>
   </select>
 
   <!-- 2) COUNTRY dropdown -->
@@ -180,6 +295,12 @@
   <select id="sectorSelector">
     <option value="All" selected>All Sectors</option>
   </select>
+
+  <!-- Trade Loss Card - Add this after the sectorSelector -->
+<div id="tradeLossCard">
+  <h4>Total Trade Loss</h4>
+  <p id="tradeLossValue">$0</p>
+</div>
 
   <!-- LEFT map box -->
   <div class="map-box left">
@@ -213,6 +334,17 @@
     <div id="dumbbellChart" class="map-inner"></div>
   </div>
 
+<!-- Treemap container - Add this where you want the treemap to appear -->
+<div class="chart-box treemap-container">
+  <div class="map-title">USA current imports of goods by Sector</div>
+  <div id="treemapChartPrimary" class="map-inner"></div>
+</div>
+
+<div class="chart-box treemap-container-right">
+  <div class="map-title">USA estimated imports of goods by Sector</div>
+  <div id="treemapChart" class="map-inner"></div>
+</div>
+
   <!-- Mapbox GL JS -->
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
 
@@ -240,11 +372,115 @@
       build3DChartPrimary(rowsForChart);
       build3DChart(rowsForChart);
       buildDumbbellChart(rowsForChart);
+  buildTreemapChart(rowsForChart); // Add this line
+    buildPrimaryTreemapChart(rowsForChart); // Second treemap (primaryvalue_x)
+  updateTradeLossCard(rowsForChart);  // Add this line
     })
     .catch(err => {
       console.error('Error loading data:', err);
       alert('Failed to load GeoJSON or CSV. Check console.');
     });
+
+
+        function formatValue(val) {
+      val = parseFloat(val);
+      if (isNaN(val)) return '0';
+      if (val >= 1e9) return (val / 1e9).toFixed(2) + 'B';
+      if (val >= 1e6) return (val / 1e6).toFixed(2) + 'M';
+      if (val >= 1e3) return (val / 1e3).toFixed(1) + 'K';
+      return val.toFixed(0);
+    }
+
+    // Format numbers into K, M, B - Add with other utility functions
+function formatNumber(num) {
+  const n = parseFloat(num);
+  if (isNaN(n)) return "$0";
+  if (n <= -1000000000) return "-$" + (n / -1000000000).toFixed(2) + "B";
+  if (n <= -1000000) return "-$" + (n / -1000000).toFixed(2) + "M";
+  if (n <= -1000) return "-$" + (n / -1000).toFixed(1) + "K";
+  return "$" + n.toFixed(0);
+}
+
+// Add this with your other utility functions
+let currentTreemapData = null;
+
+function handleTreemapResize() {
+  if (currentTreemapData) {
+    buildTreemapChart(currentTreemapData);
+  }
+}
+
+
+  function createTradeLossCard() {
+    const controls = document.getElementById("controls");
+
+    const card = document.createElement("div");
+    card.id = "tradeLossCard";
+    card.style.background = "white";
+    card.style.padding = "15px";
+    card.style.borderRadius = "10px";
+    card.style.boxShadow = "0 2px 6px rgba(0,0,0,0.1)";
+    card.style.display = "inline-block";
+    card.style.marginLeft = "auto";
+
+    const title = document.createElement("div");
+    title.textContent = "Total Trade Loss";
+    title.style.fontWeight = "bold";
+    title.style.color = "#555";
+    title.style.fontSize = "14px";
+
+    const value = document.createElement("div");
+    value.id = "totalLossValue";
+    value.textContent = "$0";
+    value.style.fontSize = "20px";
+    value.style.fontWeight = "bold";
+    value.style.color = "#0291da";
+
+    card.appendChild(title);
+    card.appendChild(value);
+    controls.appendChild(card);
+  }
+// Update trade loss card - Add with other utility functions
+function updateTradeLossCard(rows) {
+if (!rows || rows.length === 0) {
+        const totalLoss = countryData.reduce((sum, d) => sum + parseFloat(d.Total_trade_loss || 0), 0);
+        // CHANGE THIS LINE:
+        const formattedVal1 = formatNumber(totalLoss); // <-- Change formatValue to formatNumber
+        document.getElementById('totalLossValue').textContent = `${totalLoss}`;
+        return;
+    }
+
+
+  // Detect column names
+  const sample = rows[0];
+  let tradeLossKey = null;
+let countryKey = null, sectorKey = null, scenarioKey = null;
+  Object.keys(sample).forEach(key => {
+    const lc = key.toLowerCase();
+    if (lc.includes('total_trade_loss')) tradeLossKey = key;
+    if (lc.includes('country')) countryKey = key;
+if (lc.includes('sector')) sectorKey = key;
+ if (lc.includes('scenario'))  scenarioKey = key;
+  });
+
+  if (!tradeLossKey) return;
+
+  const selCountry = getSelectedCountry();
+  const selSector = getSelectedSector();
+
+  const totalLoss = rows.reduce((sum, row) => {
+    // Apply filters
+    const country = String(row[countryKey]).trim();
+    const sector = String(row[sectorKey]).trim();
+    if (selCountry !== 'All' && country !== selCountry) return sum;
+    if (selSector !== 'All' && sector !== selSector) return sum;
+    
+    const val = parseFloat(row[tradeLossKey]) || 0;
+    return sum + val;
+  }, 0);
+ const formattedVal1 = formatNumber(totalLoss);
+  document.getElementById("tradeLossValue").textContent = formattedVal1;
+} 
 
     // ────────────────────────────────────────────────────────────────────
     // processDataAndBuildMap: same as your original script, unmodified,
@@ -373,9 +609,9 @@
       const map = new mapboxgl.Map({
         container: 'map',
         style: 'mapbox://styles/mapbox/light-v11',
-        center: [122.7289777362036, 1.4608357942721568],
-        zoom: 3.6514121880681563,
-        pitch: 60,
+        center: [122.7289777362036, 8.4608357942721568],
+        zoom: 2.6514121880681563,
+        pitch: 0,
         bearing: -10,
         projection: 'mercator'
       });
@@ -400,36 +636,36 @@
             'fill-extrusion-height': [
               'match',
               ['get','name'],
-              'Brunei',    68000,
-              'Cambodia',  72000,
-              'Indonesia', 85000,
-              'Laos',      67000,
-              'Malaysia',  78000,
-              'Myanmar',   71000,
-              'Philippines',74000,
-              'Singapore', 69000,
-              'Thailand',  82000,
-              'Viet Nam',  80000,
+              'Brunei',    100,
+              'Cambodia',  100,
+              'Indonesia', 100,
+              'Laos',      100,
+              'Malaysia',  100,
+              'Myanmar',   100,
+              'Philippines',100,
+              'Singapore', 100,
+              'Thailand',  1000,
+              'Viet Nam',  100,
               /* default */ 0
             ],
             'fill-extrusion-base': 0,
             // placeholder—overwritten by updateAllFilters()
             'fill-extrusion-color': [
               'interpolate',['linear'],['get','value1'],
-              0, '#f2f0f7',
-              maxVal1/4, '#cbc9e2',
-              maxVal1/2, '#9e9ac8',
-              (3*maxVal1)/4, '#6a51a3',
-              maxVal1, '#3f007d'
+              0, '#c3ffff',
+              maxVal1/4, '#8be2f2',
+              maxVal1/2, '#54c3ea',
+              (3*maxVal1)/4, '#1ca2e0',
+              maxVal1, '#0291da'
             ],
-            'fill-extrusion-opacity': 0.9
+            'fill-extrusion-opacity': 1
           }
         });
 
         map.setLight({
           anchor: 'viewport',
           color: 'white',
-          intensity: 0.6,
+          intensity: 0.2,
           position: [1.5, 90, 40]
         });
 
@@ -445,9 +681,11 @@
           const dispVal = (sc === 'Scenario 1')
                           ? f.properties.value1
                           : f.properties.value2;
+
+        const formattedVal = formatValue(dispVal);
           popup
             .setLngLat(e.lngLat)
-            .setHTML(`<strong>${cn}</strong><br>${sc} Value: ${dispVal.toLocaleString()}`)
+            .setHTML(`<strong>${cn}</strong><br><strong>Import value:</strong> $${formattedVal.toLocaleString()}`)
             .addTo(map);
         });
         map.on('mouseleave','asean-3d-extrusion',() => {
@@ -461,11 +699,11 @@
         const map2 = new mapboxgl.Map({
           container: 'map2',
           style: 'mapbox://styles/mapbox/light-v11',
-          center: [122.7289777362036, 1.4608357942721568],
-          zoom: 3.6514121880681563,
-          pitch: 60,
-          bearing: -10,
-          projection: 'mercator'
+                  center: [122.7289777362036, 8.4608357942721568],
+        zoom: 2.6514121880681563,
+        pitch: 0,
+        bearing: -10,
+        projection: 'mercator'
         });
 
         map2.on('load', () => {
@@ -483,29 +721,29 @@
               'fill-extrusion-height': [
                 'match',
                 ['get','name'],
-                'Brunei',    68000,
-                'Cambodia',  72000,
-                'Indonesia', 85000,
-                'Laos',      67000,
-                'Malaysia',  78000,
-                'Myanmar',   71000,
-                'Philippines',74000,
-                'Singapore', 69000,
-                'Thailand',  82000,
-                'Viet Nam',  80000,
+                'Brunei',    100,
+                'Cambodia',  100,
+                'Indonesia', 100,
+                'Laos',      100,
+                'Malaysia',  100,
+                'Myanmar',   100,
+                'Philippines',100,
+                'Singapore', 100,
+                'Thailand',  100,
+                'Viet Nam',  100,
                 /* default */ 0
               ],
               'fill-extrusion-base': 0,
               // placeholder—overwritten by updateAllFilters()
               'fill-extrusion-color': [
                 'interpolate',['linear'],['get','imports1'],
-                0, '#f2f0f7',
-                maxImp1/4, '#cbc9e2',
-                maxImp1/2, '#9e9ac8',
-                (3*maxImp1)/4, '#6a51a3',
-                maxImp1, '#3f007d'
+                0, '#c3ffff',
+                maxImp1/4, '#8be2f2',
+                maxImp1/2, '#54c3ea',
+                (3*maxImp1)/4, '#1ca2e0',
+                maxImp1, '#0291da'
               ],
-              'fill-extrusion-opacity': 0.9
+              'fill-extrusion-opacity': 1
             }
           });
 
@@ -528,9 +766,11 @@
             const dispVal = (sc === 'Scenario 1')
                             ? f.properties.imports1
                             : f.properties.imports2;
+
+                              const formattedVal = formatValue(dispVal);
             popup2
               .setLngLat(e.lngLat)
-              .setHTML(`<strong>${cn}</strong><br>${sc} Imports: ${dispVal.toLocaleString()}`)
+              .setHTML(`<strong>${cn}</strong><br><strong>Estimated import value:</strong> $${formattedVal.toLocaleString()}`)
               .addTo(map2);
           });
           map2.on('mouseleave','asean-3d-extrusion-2',() => {
@@ -545,6 +785,10 @@
           function updateAllFilters() {
             // 1) Recompute aggregates for both maps
             recomputeAggregates();
+            // Update trade loss card and treemap
+updateTradeLossCard(rowsForChart);
+buildTreemapChart(rowsForChart);
+  buildPrimaryTreemapChart(rowsForChart);
 
             // 2) Update GeoJSON data sources
             map.getSource('countries-with-values').setData(countriesGeoJSON);
@@ -595,8 +839,8 @@
               'fill-extrusion-color',
               [
                 'interpolate',['linear'],['get', valueProp],
-                combinedMin, '#f2f0f7',
-                combinedMax, '#3f007d'
+                combinedMin, '#c3ffff',
+                combinedMax, '#0291da'
               ]
             );
             map.setFilter('asean-3d-extrusion', countryFilterExpr);
@@ -607,8 +851,8 @@
               'fill-extrusion-color',
               [
                 'interpolate',['linear'],['get', importProp],
-                combinedMin, '#f2f0f7',
-                combinedMax, '#3f007d'
+                combinedMin, '#c3ffff',
+                combinedMax, '#0291da'
               ]
             );
             map2.setFilter('asean-3d-extrusion-2', countryFilterExpr);
@@ -643,6 +887,8 @@
         Plotly.purge(containerId);
         return;
       }
+
+
 
       // 1) Detect CSV column names (scenario, country, sector, HS2_Code, primaryValue_x)
       const sample = rows[0];
@@ -763,7 +1009,6 @@
           const hovertext =
             `Sector: ${sector}<br>` +
             `HS2: ${hs2}<br>` +
-            `Category: ${categoryLetters[catIndex]}<br>` +
             `Primary: ${sumPrimary.toLocaleString()}`;
 
           traces.push({
@@ -799,14 +1044,15 @@
             ]
           },
           yaxis: {
-            title: 'HS2 Category',
+            title: '',
             tickvals: categoryLetters.map((_, i) => i),
             ticktext: categoryLetters,
             tickfont: { size: 10 },
-            titlefont: { size: 14 }
+            titlefont: { size: 14 },
+             showticklabels: false
           },
           zaxis: {
-            title: 'PrimaryValue_x',
+            title: 'Import value (USD)',
             tickformat: '$,.1s',
             tickfont: { size: 10 },
             titlefont: { size: 14 },
@@ -822,7 +1068,7 @@
             eye: { x: 1.5, y: 1.5, z: 1.0 }
           }
         },
-        margin: { l: 0, r: 0, b: 0, t: 40, pad: 0 },
+        margin: { l: 0, r: 0, b: 0, t: 10, pad: 50 },
         hovermode: 'x'
       };
 
@@ -962,7 +1208,6 @@
           const hovertext =
             `Sector: ${sector}<br>` +
             `HS2: ${hs2}<br>` +
-            `Category: ${categoryLetters[catIndex]}<br>` +
             `Import: $${sumImport.toLocaleString()}`;
 
           traces.push({
@@ -977,7 +1222,7 @@
             opacity: 1,
             hoverinfo: 'text',
             text: [hovertext],
-            flatshading: true,
+            flatshading: false,
             showscale: false
           });
         });
@@ -998,14 +1243,15 @@
             ]
           },
           yaxis: {
-            title: 'HS2 Category',
+            title: '',
             tickvals: categoryLetters.map((_, i) => i),
             ticktext: categoryLetters,
             tickfont: { size: 10 },
-            titlefont: { size: 14 }
+            titlefont: { size: 14 },
+             showticklabels: false
           },
           zaxis: {
-            title: 'Estimated Imports (USD)',
+            title: 'Estimated imports (USD)',
             tickformat: '$,.1s',
             tickfont: { size: 10 },
             titlefont: { size: 14 },
@@ -1211,6 +1457,319 @@
         credits: { enabled: false }
       });
     }
+
+ // Replace the existing buildTreemapChart function with this:
+function buildTreemapChart(rows) {
+  const container = document.getElementById("treemapChart");
+  container.innerHTML = ""; // Clear previous chart
+
+  const width = container.clientWidth;
+  const height = container.clientHeight;
+
+  if (!rows || rows.length === 0 || width === 0 || height === 0) return;
+
+
+  // Detect column names
+  const sample = rows[0];
+  let countryKey = null, sectorKey = null, importsKey = null;
+  Object.keys(sample).forEach(key => {
+    const lc = key.toLowerCase();
+    if (lc.includes('country')) countryKey = key;
+    if (lc.includes('sector')) sectorKey = key;
+    if (lc === 'estimated_imports') importsKey = key;
+  });
+
+  if (!countryKey || !sectorKey || !importsKey) {
+    console.warn('Cannot build treemap: missing required columns');
+    return;
+  }
+
+  // Get current filters
+  const selCountry = getSelectedCountry();
+  const selSector = getSelectedSector();
+
+  // Filter rows
+  const filteredRows = rows.filter(r => {
+    const co = String(r[countryKey]).trim();
+    const se = String(r[sectorKey]).trim();
+    if (selCountry !== 'All' && co !== selCountry) return false;
+    if (selSector !== 'All' && se !== selSector) return false;
+    return true;
+  });
+
+  // Group by sector
+  const sectorData = {};
+  filteredRows.forEach(d => {
+    const sector = d[sectorKey];
+    const val = parseFloat(d[importsKey]) || 0;
+    if (!sectorData[sector]) sectorData[sector] = 0;
+    sectorData[sector] += val;
+  });
+
+  // Convert to hierarchy format
+  const root = {
+    name: "root",
+    children: Object.entries(sectorData).map(([name, value]) => ({
+      name,
+      value
+    }))
+  };
+
+  if (root.children.length === 0) return;
+
+
+  // Format function for M/K
+  const format = d3.format(",.1f");
+  function formatValue(value) {
+    if (value >= 1000000000) return `${format(value/1000000000)}B`;
+    if (value >= 1000000) return `${format(value/1000000)}M`;
+    if (value >= 1000) return `${format(value/1000)}K`;
+    return format(value);
+  }
+
+
+  // Create treemap layout
+  const treemap = d3.treemap()
+    .size([width, height - 10])
+   .paddingOuter(3)  // Space between different sectors
+  //.paddingTop(20)   // Extra space at top for labels
+  .paddingInner(1)  // Space between sub-sectors (not used here)
+
+    .round(true);
+
+  // Create hierarchy and compute layout
+  const hierarchy = d3.hierarchy(root)
+    .sum(d => d.value)
+    .sort((a, b) => b.value - a.value);
+
+  treemap(hierarchy);
+
+  // Create SVG
+  const svg = d3.select("#treemapChart")
+    .append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  // Create cells
+  const cell = svg.selectAll("g")
+    .data(hierarchy.leaves())
+    .enter().append("g")
+    .attr("transform", d => `translate(${d.x0},${d.y0})`);
+
+  // Add rectangles
+  cell.append("rect")
+    .attr("class", "treemap-rect")
+    .attr("width", d => d.x1 - d.x0)
+    .attr("height", d => d.y1 - d.y0)
+    .attr("fill", d => {
+      // Color scale based on value
+      const maxVal = d3.max(hierarchy.leaves(), d => d.value);
+      const color = d3.scaleLinear()
+        .domain([0, maxVal])
+        .range(["#c3ffff", "#0291da"]);
+      return color(d.value);
+    })
+    .on("mouseover", function(event, d) {
+      // Show tooltip
+      const tooltip = d3.select("body").append("div")
+        .attr("class", "tooltip")
+        .style("position", "absolute")
+        .style("background", "white")
+        .style("padding", "5px")
+        .style("border", "1px solid #ccc")
+        .style("border-radius", "3px")
+        .html(`<strong>${d.data.name}</strong><br>Value: $${formatValue(d.value)}`);
+      
+      tooltip.style("left", `${event.pageX + 5}px`)
+             .style("top", `${event.pageY + 5}px`);
+    })
+    .on("mouseout", function() {
+      d3.select(".tooltip").remove();
+    });
+
+  // Add text labels
+cell.append("text")
+  .attr("class", "treemap-text")
+  .attr("x", d => (d.x1 - d.x0) / 2)
+  .attr("y", d => (d.y1 - d.y0) / 2)
+  .attr("dy", "0.35em")
+  .each(function(d) {
+    const boxWidth = d.x1 - d.x0;
+    const boxHeight = d.y1 - d.y0;
+    const name = d.data.name;
+    const value = ` $${formatValue(d.value)}`;
+    
+    // Only show labels if there's enough space
+    if (boxWidth > 80 && boxHeight > 30) {
+      const text = d3.select(this);
+      
+      // For medium-sized boxes, show two lines
+      if (boxWidth > 120 && boxHeight > 40) {
+        text.append("tspan")
+          .text(name);
+          
+        text.append("tspan")
+          .text(value);
+      } 
+      // For smaller boxes, just show the value
+      else {
+        text.text(value);
+      }
+    }
+  });
+}
+
+   // code for second treemap
+function buildPrimaryTreemapChart(rows) {
+  const container = document.getElementById("treemapChartPrimary");
+  container.innerHTML = "";
+
+  if (!rows || rows.length === 0) return;
+
+  // Detect column names
+  const sample = rows[0];
+  let countryKey = null, sectorKey = null, primaryKey = null;
+  Object.keys(sample).forEach(key => {
+    const lc = key.toLowerCase();
+    if (lc.includes('country')) countryKey = key;
+    if (lc.includes('sector')) sectorKey = key;
+    if (lc.includes('primaryvalue')) primaryKey = key;
+  });
+
+  if (!countryKey || !sectorKey || !primaryKey) {
+    console.warn('Cannot build primary treemap: missing required columns');
+    return;
+  }
+
+  // Get current filters
+  const selCountry = getSelectedCountry();
+  const selSector = getSelectedSector();
+
+  // Filter rows
+  const filteredRows = rows.filter(r => {
+    const co = String(r[countryKey]).trim();
+    const se = String(r[sectorKey]).trim();
+    if (selCountry !== 'All' && co !== selCountry) return false;
+    if (selSector !== 'All' && se !== selSector) return false;
+    return true;
+  });
+
+  // Group by sector
+  const sectorData = {};
+  filteredRows.forEach(d => {
+    const sector = d[sectorKey];
+    const val = parseFloat(d[primaryKey]) || 0;
+    if (!sectorData[sector]) sectorData[sector] = 0;
+    sectorData[sector] += val;
+  });
+
+  // Convert to hierarchy format
+  const root = {
+    name: "root",
+    children: Object.entries(sectorData).map(([name, value]) => ({
+      name,
+      value
+    }))
+  };
+
+  if (root.children.length === 0) return;
+
+  // Set up dimensions
+  const width = container.clientWidth;
+  const height = container.clientHeight;
+
+  // Create treemap layout
+  const treemap = d3.treemap()
+    .size([width, height])
+    .padding(1)
+    .round(true);
+
+  const hierarchy = d3.hierarchy(root)
+    .sum(d => d.value)
+    .sort((a, b) => b.value - a.value);
+
+  treemap(hierarchy);
+
+  // Create SVG
+  const svg = d3.select("#treemapChartPrimary")
+    .append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  // Create cells
+  const cell = svg.selectAll("g")
+    .data(hierarchy.leaves())
+    .enter().append("g")
+    .attr("transform", d => `translate(${d.x0},${d.y0})`);
+
+  // Add rectangles
+  cell.append("rect")
+    .attr("class", "treemap-rect")
+    .attr("width", d => d.x1 - d.x0)
+    .attr("height", d => d.y1 - d.y0)
+    .attr("fill", d => {
+      const maxVal = d3.max(hierarchy.leaves(), d => d.value);
+      const color = d3.scaleLinear()
+        .domain([0, maxVal])
+        .range(["#c3ffff", "#0291da"]);
+      return color(d.value);
+    })
+   .on("mouseover", function(event, d) {
+      // Show tooltip
+      const tooltip = d3.select("body").append("div")
+        .attr("class", "treemap-tooltip")
+        .style("position", "absolute")
+        .style("background", "white")
+        .style("padding", "5px")
+        .style("border", "1px solid #ccc")
+        .style("border-radius", "3px")
+        .html(`<strong>${d.data.name}</strong><br>Value: $${formatValue(d.value)}`);
+      
+      tooltip.style("left", `${event.pageX + 5}px`)
+             .style("top", `${event.pageY + 5}px`);
+    })
+ .on("mousemove", function(event) {
+    const tooltip = d3.select(".treemap-tooltip");
+    positionTooltip(tooltip, event);
+  })
+  .on("mouseout", function() {
+    d3.select(".treemap-tooltip").remove();
+  });
+
+
+  // Add text labels (same logic as before)
+ 
+  // Add text labels
+cell.append("text")
+  .attr("class", "treemap-text")
+  .attr("x", d => (d.x1 - d.x0) / 2)
+  .attr("y", d => (d.y1 - d.y0) / 2)
+  .attr("dy", "0.35em")
+  .each(function(d) {
+    const boxWidth = d.x1 - d.x0;
+    const boxHeight = d.y1 - d.y0;
+    const name = d.data.name;
+    const value = ` $${formatValue(d.value)}`;
+    
+    // Only show labels if there's enough space
+    if (boxWidth > 80 && boxHeight > 30) {
+      const text = d3.select(this);
+      
+      // For medium-sized boxes, show two lines
+      if (boxWidth > 120 && boxHeight > 40) {
+        text.append("tspan")
+          .text(name);
+          
+        text.append("tspan")
+          .text(value);
+      } 
+      // For smaller boxes, just show the value
+      else {
+        text.text(value);
+      }
+    }
+  });
+}
 
     // ────────────────────────────────────────────────────────────────────
     // Helper functions to read current dropdown values
