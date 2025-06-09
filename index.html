@@ -1471,15 +1471,16 @@ function buildTreemapChart(rows) {
 
   // Detect column names
   const sample = rows[0];
-  let countryKey = null, sectorKey = null, importsKey = null;
+  let countryKey = null, sectorKey = null, importsKey = null, scenarioKey = null;
   Object.keys(sample).forEach(key => {
     const lc = key.toLowerCase();
     if (lc.includes('country')) countryKey = key;
     if (lc.includes('sector')) sectorKey = key;
     if (lc === 'estimated_imports') importsKey = key;
+  if (lc.includes('scenario'))        scenarioKey = key;
   });
 
-  if (!countryKey || !sectorKey || !importsKey) {
+  if (!countryKey || !sectorKey || !importsKey || !scenarioKey) {
     console.warn('Cannot build treemap: missing required columns');
     return;
   }
@@ -1487,11 +1488,14 @@ function buildTreemapChart(rows) {
   // Get current filters
   const selCountry = getSelectedCountry();
   const selSector = getSelectedSector();
+const selScenario = document.getElementById('scenarioSelector').value;
 
   // Filter rows
   const filteredRows = rows.filter(r => {
+  const sc = String(r[scenarioKey]).trim();
     const co = String(r[countryKey]).trim();
     const se = String(r[sectorKey]).trim();
+  if (sc !== selScenario) return false;
     if (selCountry !== 'All' && co !== selCountry) return false;
     if (selSector !== 'All' && se !== selSector) return false;
     return true;
@@ -1628,15 +1632,16 @@ function buildPrimaryTreemapChart(rows) {
 
   // Detect column names
   const sample = rows[0];
-  let countryKey = null, sectorKey = null, primaryKey = null;
+  let countryKey = null, sectorKey = null, primaryKey = null, scenarioKey = null;
   Object.keys(sample).forEach(key => {
     const lc = key.toLowerCase();
     if (lc.includes('country')) countryKey = key;
     if (lc.includes('sector')) sectorKey = key;
     if (lc.includes('primaryvalue')) primaryKey = key;
+  if (lc.includes('scenario'))   scenarioKey = key;
   });
 
-  if (!countryKey || !sectorKey || !primaryKey) {
+  if (!countryKey || !sectorKey || !primaryKey || !scenarioKey) {
     console.warn('Cannot build primary treemap: missing required columns');
     return;
   }
@@ -1644,11 +1649,14 @@ function buildPrimaryTreemapChart(rows) {
   // Get current filters
   const selCountry = getSelectedCountry();
   const selSector = getSelectedSector();
+const selScenario = document.getElementById('scenarioSelector').value;
 
   // Filter rows
   const filteredRows = rows.filter(r => {
+  const sc = String(r[scenarioKey]).trim();
     const co = String(r[countryKey]).trim();
     const se = String(r[sectorKey]).trim();
+  if (sc !== selScenario) return false;
     if (selCountry !== 'All' && co !== selCountry) return false;
     if (selSector !== 'All' && se !== selSector) return false;
     return true;
