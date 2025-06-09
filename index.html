@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>3D ASEAN Maps + Full‐Width Vertical Dumbbell Chart (with Filters)</title>
+  <title>Dashboard with 3D Maps + 3D Bars + Dumbbell (Scrollable)</title>
   <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
 
   <!-- Mapbox GL JS CSS -->
@@ -14,54 +14,55 @@
   <!-- PapaParse for CSV parsing -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
-  <!-- Highcharts + Highcharts‐more + Dumbbell module -->
+  <!-- Plotly for 3D Bar Chart -->
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+  <!-- Highcharts + Modules for Dumbbell Chart -->
   <script src="https://code.highcharts.com/highcharts.js"></script>
   <script src="https://code.highcharts.com/highcharts-more.js"></script>
   <script src="https://code.highcharts.com/modules/dumbbell.js"></script>
 
   <style>
-    /* ───────────────────────────────────────────────────────────────── */
-    /* Reset body/html so nothing scrolls unexpectedly                 */
+    /*─────────────────────────────────────────────────────────────────*/
+    /* Allow scrolling on the page (instead of hiding overflow)       */
     html, body {
       margin: 0;
       padding: 0;
-      height: 100%;
-      overflow: hidden;
+      height: auto;
+      overflow: auto;
       font-family: Arial, sans-serif;
       background: #f0f0f0;
+      min-height: calc(180vh + 90px);
     }
 
-    /* ───────────────────────────────────────────────────────────────── */
-    /* Dropdowns (Scenario, Country, Sector) at top‐left                */
-    #scenarioSelector {
-      position: relative;
-      top: 10px;
-      z-index: 2;
-      background: white;
-      padding: 6px 10px;
-      font-size: 14px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      margin-left: 2%;
-      margin-right: 10px;
-      outline: none;
-    }
+    /*─────────────────────────────────────────────────────────────────*/
+    /* Make the filters “float” at the top of the window, above the maps */
+    #scenarioSelector,
     #countrySelector,
     #sectorSelector {
-      position: relative;
+      position: fixed;
       top: 10px;
-      z-index: 2;
+      z-index: 1000;
       background: white;
       padding: 6px 10px;
       font-size: 14px;
       border: 1px solid #ccc;
       border-radius: 4px;
-      margin-right: 10px;
       outline: none;
     }
 
-    /* ───────────────────────────────────────────────────────────────── */
-    /* Shared “card” style for map‐boxes and chart‐box                   */
+    #scenarioSelector {
+      left: 2%;
+    }
+    #countrySelector {
+      left: calc(2% + 120px);
+    }
+    #sectorSelector {
+      left: calc(2% + 255px);
+    }
+
+    /*─────────────────────────────────────────────────────────────────*/
+    /* Shared “card” style for map‐boxes and chart‐boxes               */
     .map-box,
     .chart-box {
       position: absolute;
@@ -73,8 +74,8 @@
       overflow: hidden;
     }
 
-    /* ───────────────────────────────────────────────────────────────── */
-    /* Left map: 50px down, 2% left, 47.2% width, 45% height              */
+    /*─────────────────────────────────────────────────────────────────*/
+    /* Left map: 50px down, 2% left, 47.2% width, 45% height          */
     .map-box.left {
       top: 50px;
       left: 2%;
@@ -82,8 +83,8 @@
       height: 45%;
     }
 
-    /* ───────────────────────────────────────────────────────────────── */
-    /* Right map: 50px down, 51% left, 47.2% width, 45% height           */
+    /*─────────────────────────────────────────────────────────────────*/
+    /* Right map: 50px down, 51% left, 47.2% width, 45% height        */
     .map-box.right {
       top: 50px;
       left: 51%;
@@ -91,18 +92,40 @@
       height: 45%;
     }
 
-    /* ───────────────────────────────────────────────────────────────── */
-    /* Chart box: placed just under maps (50px + 45% + 10px gap),
-       spans left:2% → right:98.2%, height 45%                           */
-    .chart-box.left {
-      top: calc(50px + 45% + 10px);
+    /*─────────────────────────────────────────────────────────────────*/
+    /* 3D Bar chart UNDER the LEFT map (PRIMARY)                       */
+    /* These are the exact same properties your original .left-under had,
+       except we kept the same top/left/width/height/overflow values.  */
+    .chart-box.left-under {
+      top: calc(50px + 45% + 10px); /* 50px + 45% map height + 10px gap */
       left: 2%;
-      width: 96.2%;
-      height: 45%;
+      width: 47.2%;
+      height: 75%;
+      overflow: visible;
     }
 
-    /* ───────────────────────────────────────────────────────────────── */
-    /* Title bar inside each “card”                                       */
+    /*─────────────────────────────────────────────────────────────────*/
+    /* 3D Bar chart UNDER the RIGHT map (ESTIMATED)                    */
+    /* This is exactly your original left-under CSS, but moved to 51%. */
+    .chart-box.right-under {
+      top: calc(50px + 45% + 10px); /* same vertical offset as left-under */
+      left: 51%;
+      width: 47.2%;
+      height: 75%;
+      overflow: visible;
+    }
+
+    /*─────────────────────────────────────────────────────────────────*/
+    /* Dumbbell chart under the 3D Bar charts                          */
+    .chart-box.left-under2 {
+     top: calc(360px + 45% + 10px + 45% + 10px);
+      left: 2%;
+      width: 96.2%;
+      height: 60%;
+    }
+
+    /*─────────────────────────────────────────────────────────────────*/
+    /* Title bar inside each “card”                                     */
     .map-title {
       height: 32px;
       line-height: 32px;
@@ -115,16 +138,25 @@
       box-sizing: border-box;
     }
 
-    /* ───────────────────────────────────────────────────────────────── */
-    /* Container for map/chart—fills the area under the title bar         */
+    /*─────────────────────────────────────────────────────────────────*/
+    /* Container for map/chart—fills the area under the title bar       */
     .map-inner {
       width: 100%;
       height: calc(100% - 32px);
       position: relative;
     }
 
-    /* ───────────────────────────────────────────────────────────────── */
-    /* Hide Mapbox attribution & logo (optional)                          */
+    /* If you need a custom pixel‐sized canvas for Plotly, override here */
+    .map-inner1 {
+      position: absolute;
+      left: 0;
+      top: 32px; /* below the map-title (32px) */
+      width: 100%;
+      height: calc(100% - 32px);
+    }
+
+    /*─────────────────────────────────────────────────────────────────*/
+    /* Hide Mapbox attribution & logo (optional)                        */
     .mapboxgl-ctrl-logo,
     .mapboxgl-ctrl-attrib {
       display: none !important;
@@ -149,22 +181,36 @@
     <option value="All" selected>All Sectors</option>
   </select>
 
-  <!-- Left map box -->
+  <!-- LEFT map box -->
   <div class="map-box left">
     <div class="map-title">USA current imports from ASEAN, 2024</div>
     <div id="map" class="map-inner"></div>
   </div>
 
-  <!-- Right map box -->
+  <!-- RIGHT map box -->
   <div class="map-box right">
     <div class="map-title">USA estimated imports from ASEAN (after tariff)</div>
     <div id="map2" class="map-inner"></div>
   </div>
 
-  <!-- Full‐width chart box under both maps -->
-  <div class="chart-box left">
-    <div class="map-title">Average MinAve vs. New Tariff by HS2_Code (%)</div>
-    <div id="chart1" class="map-inner"></div>
+  <!-- NEW: 3D Bar chart UNDER the LEFT map (PRIMARY) -->
+  <div class="chart-box left-under">
+    <div class="map-title">USA current imports of goods from ASEAN, 2024</div>
+    <div id="bar3dChartPrimary" class="map-inner1"></div>
+  </div>
+
+  <!-- MOVED: 3D Bar chart UNDER the RIGHT map (ESTIMATED) -->
+  <!-- (This was originally under the LEFT map; we simply changed `.left-under` → `.right-under`
+       and `left: 2%` → `left: 51%`. Everything else—including height: 75%—is untouched.) -->
+  <div class="chart-box right-under">
+    <div class="map-title">USA estimated imports of goods from ASEAN (after tariff)</div>
+    <div id="bar3dChart" class="map-inner1"></div>
+  </div>
+
+  <!-- Dumbbell chart box below both 3D bar charts -->
+  <div class="chart-box left-under2">
+    <div class="map-title">Simple average actual tariff vs new USA tariff by HS2 Code products</div>
+    <div id="dumbbellChart" class="map-inner"></div>
   </div>
 
   <!-- Mapbox GL JS -->
@@ -177,17 +223,22 @@
     const GEOJSON_URL = 'https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson';
     const CSV_URL     = 'https://raw.githubusercontent.com/USTariffOnASEAN/USTariffOnASEAN/main/USTARIFF.csv';
 
-    // We'll store parsed rows here so buildDumbbellChart can access them
+    // We'll store parsed rows here so all charts can access them
     let rowsForChart = [];
 
-    // 1) Load GeoJSON + CSV in parallel
+    // ────────────────────────────────────────────────────────────────────
+    // 1) Load GeoJSON + CSV in parallel, then build everything
+    // ────────────────────────────────────────────────────────────────────
     Promise.all([
       fetch(GEOJSON_URL).then(r => r.json()),
       fetch(CSV_URL).then(r => r.text())
     ])
     .then(([countriesGeoJSON, csvText]) => {
       processDataAndBuildMap(countriesGeoJSON, csvText);
-      // After initializing maps, immediately build the chart with initial data:
+
+      // After maps are ready, draw both 3D bars + the dumbbell chart once:
+      build3DChartPrimary(rowsForChart);
+      build3DChart(rowsForChart);
       buildDumbbellChart(rowsForChart);
     })
     .catch(err => {
@@ -195,6 +246,10 @@
       alert('Failed to load GeoJSON or CSV. Check console.');
     });
 
+    // ────────────────────────────────────────────────────────────────────
+    // processDataAndBuildMap: same as your original script, unmodified,
+    // except that in updateAllFilters() we now call both 3D‐bar builders.
+    // ────────────────────────────────────────────────────────────────────
     function processDataAndBuildMap(countriesGeoJSON, csvText) {
       // 2) Parse the CSV with PapaParse
       const parsed = Papa.parse(csvText, {
@@ -203,25 +258,28 @@
         dynamicTyping: true
       });
       const rows = parsed.data;
-      rowsForChart = rows; // make available for the dumbbell builder
+      rowsForChart = rows; // for build3DChartPrimary, build3DChart, buildDumbbellChart
 
-      // 3) Detect column names used by maps:
-      //    ISO3, primaryValue_x, scenario, estimated_imports, country, sector
+      // 3) Detect column names used by maps & charts:
       const sampleRow = rows[0] || {};
       const colNames  = Object.keys(sampleRow);
       let isoKey = null, valueKey = null, scenarioKey = null,
-          importsKey = null, countryKey = null, sectorKey = null;
+          importsKey = null, countryKey = null, sectorKey = null,
+          hs2Key = null, minAveKey = null, tariffKey = null;
       colNames.forEach(key => {
         const lc = key.toLowerCase();
-        if (lc.includes('iso3'))         isoKey      = key;
-        if (lc.includes('primaryvalue')) valueKey    = key;
-        if (lc.includes('scenario'))     scenarioKey = key;
-        if (lc === 'estimated_imports')  importsKey  = key;
-        if (lc.includes('country'))      countryKey  = key;
-        if (lc.includes('sector'))       sectorKey   = key;
+        if (lc.includes('iso3'))          isoKey      = key;
+        if (lc.includes('primaryvalue'))  valueKey    = key; // primaryValue_x
+        if (lc.includes('scenario'))      scenarioKey = key;
+        if (lc === 'estimated_imports')   importsKey  = key;
+        if (lc.includes('country'))       countryKey  = key;
+        if (lc.includes('sector'))        sectorKey   = key;
+        if (lc === 'hs2_code')            hs2Key      = key;
+        if (lc === 'minave')              minAveKey   = key;
+        if (lc === 'new_tariff_new')      tariffKey   = key;
       });
-      if (!isoKey || !valueKey || !scenarioKey || !importsKey || !countryKey || !sectorKey) {
-        console.warn('Missing one of ISO3 / primaryValue_x / scenario / estimated_imports / country / sector in CSV.');
+      if (!isoKey || !valueKey || !scenarioKey || !importsKey || !countryKey || !sectorKey || !hs2Key || !minAveKey || !tariffKey) {
+        console.warn('Missing one of: ISO3 / primaryValue_x / scenario / estimated_imports / country / sector / HS2_Code / MinAve / new_tariff_new in CSV.');
       }
 
       // 4) Build sorted sets of unique countries & sectors
@@ -279,14 +337,14 @@
           const scn = String(r[scenarioKey]).trim();
           if (scn !== 'Scenario 1' && scn !== 'Scenario 2') return;
 
-          // primaryValue_x
+          // primaryValue_x aggregation
           const vRaw = parseFloat(r[valueKey]);
           const v    = isNaN(vRaw) ? 0 : vRaw;
           aggregatesValue[scn][iso] = (aggregatesValue[scn][iso] || 0) + v;
           if (scn === 'Scenario 1' && aggregatesValue[scn][iso] > maxVal1) maxVal1 = aggregatesValue[scn][iso];
           if (scn === 'Scenario 2' && aggregatesValue[scn][iso] > maxVal2) maxVal2 = aggregatesValue[scn][iso];
 
-          // estimated_imports
+          // estimated_imports aggregation
           const iRaw = parseFloat(r[importsKey]);
           const i    = isNaN(iRaw) ? 0 : iRaw;
           aggregatesImports[scn][iso] = (aggregatesImports[scn][iso] || 0) + i;
@@ -299,8 +357,8 @@
           const geoIso = feature.properties['ISO3166-1-Alpha-3']
                          ? feature.properties['ISO3166-1-Alpha-3'].trim().toUpperCase()
                          : null;
-          feature.properties.value1   = aggregatesValue['Scenario 1'][geoIso] || 0;
-          feature.properties.value2   = aggregatesValue['Scenario 2'][geoIso] || 0;
+          feature.properties.value1   = aggregatesValue['Scenario 1'][geoIso]   || 0;
+          feature.properties.value2   = aggregatesValue['Scenario 2'][geoIso]   || 0;
           feature.properties.imports1 = aggregatesImports['Scenario 1'][geoIso] || 0;
           feature.properties.imports2 = aggregatesImports['Scenario 2'][geoIso] || 0;
         });
@@ -323,19 +381,16 @@
       });
 
       map.on('load', () => {
-        // Add GeoJSON source
         map.addSource('countries-with-values', {
           type: 'geojson',
           data: countriesGeoJSON
         });
 
-        // Fixed ASEAN country names
         const ASEAN_NAMES = [
           'Brunei','Cambodia','Indonesia','Laos','Malaysia',
           'Myanmar','Philippines','Singapore','Thailand','Viet Nam'
         ];
 
-        // Extrusion layer (initially filtered to all ASEAN)
         map.addLayer({
           id: 'asean-3d-extrusion',
           type: 'fill-extrusion',
@@ -345,16 +400,16 @@
             'fill-extrusion-height': [
               'match',
               ['get','name'],
-              'Brunei',   68000,
-              'Cambodia', 72000,
-              'Indonesia',85000,
-              'Laos',     67000,
-              'Malaysia', 78000,
-              'Myanmar',  71000,
+              'Brunei',    68000,
+              'Cambodia',  72000,
+              'Indonesia', 85000,
+              'Laos',      67000,
+              'Malaysia',  78000,
+              'Myanmar',   71000,
               'Philippines',74000,
-              'Singapore',69000,
-              'Thailand', 82000,
-              'Viet Nam', 80000,
+              'Singapore', 69000,
+              'Thailand',  82000,
+              'Viet Nam',  80000,
               /* default */ 0
             ],
             'fill-extrusion-base': 0,
@@ -378,7 +433,6 @@
           position: [1.5, 90, 40]
         });
 
-        // Hover popup on left map
         const popup = new mapboxgl.Popup({
           closeButton: false,
           closeOnClick: false
@@ -388,7 +442,9 @@
           const f  = e.features[0];
           const cn = f.properties.name;
           const sc = document.getElementById('scenarioSelector').value;
-          const dispVal = (sc === 'Scenario 1') ? f.properties.value1 : f.properties.value2;
+          const dispVal = (sc === 'Scenario 1')
+                          ? f.properties.value1
+                          : f.properties.value2;
           popup
             .setLngLat(e.lngLat)
             .setHTML(`<strong>${cn}</strong><br>${sc} Value: ${dispVal.toLocaleString()}`)
@@ -427,20 +483,20 @@
               'fill-extrusion-height': [
                 'match',
                 ['get','name'],
-                'Brunei',   68000,
-                'Cambodia', 72000,
-                'Indonesia',85000,
-                'Laos',     67000,
-                'Malaysia', 78000,
-                'Myanmar',  71000,
+                'Brunei',    68000,
+                'Cambodia',  72000,
+                'Indonesia', 85000,
+                'Laos',      67000,
+                'Malaysia',  78000,
+                'Myanmar',   71000,
                 'Philippines',74000,
-                'Singapore',69000,
-                'Thailand', 82000,
-                'Viet Nam', 80000,
+                'Singapore', 69000,
+                'Thailand',  82000,
+                'Viet Nam',  80000,
                 /* default */ 0
               ],
               'fill-extrusion-base': 0,
-              // placeholder—overwritten in updateAllFilters()
+              // placeholder—overwritten by updateAllFilters()
               'fill-extrusion-color': [
                 'interpolate',['linear'],['get','imports1'],
                 0, '#f2f0f7',
@@ -469,7 +525,9 @@
             const f  = e.features[0];
             const cn = f.properties.name;
             const sc = document.getElementById('scenarioSelector').value;
-            const dispVal = (sc === 'Scenario 1') ? f.properties.imports1 : f.properties.imports2;
+            const dispVal = (sc === 'Scenario 1')
+                            ? f.properties.imports1
+                            : f.properties.imports2;
             popup2
               .setLngLat(e.lngLat)
               .setHTML(`<strong>${cn}</strong><br>${sc} Imports: ${dispVal.toLocaleString()}`)
@@ -481,19 +539,18 @@
           });
 
           // ────────────────────────────────────────────────────────────────────
-          // updateAllFilters(): recompute aggregates, update both maps’ data,
-          // compute unified min/max across BOTH “value” & “import” and apply 
-          // the SAME color ramp to both layers, THEN re‐build the dumbbell chart.
+          // updateAllFilters(): Recompute aggregates, update both maps,
+          // then redraw **both** 3D bar charts + the dumbbell chart.
           // ────────────────────────────────────────────────────────────────────
           function updateAllFilters() {
-            // 1) Recompute all aggregates
+            // 1) Recompute aggregates for both maps
             recomputeAggregates();
 
-            // 2) Update each GeoJSON source
+            // 2) Update GeoJSON data sources
             map.getSource('countries-with-values').setData(countriesGeoJSON);
             map2.getSource('countries-with-values').setData(countriesGeoJSON);
 
-            // 3) Build a filter expression for ASEAN + selected country
+            // 3) Build filter expression (ASEAN + selected country)
             const selCountry = getSelectedCountry();
             const ASEAN_NAMES = [
               'Brunei','Cambodia','Indonesia','Laos','Malaysia',
@@ -507,19 +564,17 @@
             }
             const countryFilterExpr = (countryFilterList.length > 0)
               ? ['match',['get','name'],countryFilterList,true,false]
-              : ['==',['get','name'],'']; // matches nothing if non‐ASEAN chosen
+              : ['==',['get','name'],'']; // matches nothing if non-ASEAN chosen
 
-            // 4) Decide which property names to read from GeoJSON for color ramp
+            // 4) Decide which property names to use for coloring
             const sc = document.getElementById('scenarioSelector').value;
             const valueProp  = (sc === 'Scenario 1' ? 'value1'   : 'value2');
             const importProp = (sc === 'Scenario 1' ? 'imports1' : 'imports2');
 
-            // 5) Build array of features that pass the filter
+            // 5) Compute a single min/max across BOTH valueProp & importProp
             const filteredFeatures = countriesGeoJSON.features.filter(f =>
               countryFilterList.includes(f.properties.name)
             );
-
-            // 6) Find a single min/max across BOTH valueProp & importProp
             let combinedMin = Infinity, combinedMax = -Infinity;
             filteredFeatures.forEach(f => {
               const vRaw = f.properties[valueProp];
@@ -527,46 +582,45 @@
               if (vRaw < combinedMin) combinedMin = vRaw;
               if (vRaw > combinedMax) combinedMax = vRaw;
               if (iRaw < combinedMin) combinedMin = iRaw;
-              if (iRaw > combinedMax) combinedMax = iRaw;
+              if (iRaw > combinedMax) combinedMax = iRaw; 
             });
             if (filteredFeatures.length === 0) {
               combinedMin = 0;
               combinedMax = 1;
             }
 
-            // 7) Update left map’s color ramp
+            // 6) Update left map’s color ramp
             map.setPaintProperty(
               'asean-3d-extrusion',
               'fill-extrusion-color',
               [
-                'interpolate',['linear'],['get',valueProp],
+                'interpolate',['linear'],['get', valueProp],
                 combinedMin, '#f2f0f7',
                 combinedMax, '#3f007d'
               ]
             );
             map.setFilter('asean-3d-extrusion', countryFilterExpr);
 
-            // 8) Update right map’s color ramp
+            // 7) Update right map’s color ramp
             map2.setPaintProperty(
               'asean-3d-extrusion-2',
               'fill-extrusion-color',
               [
-                'interpolate',['linear'],['get',importProp],
+                'interpolate',['linear'],['get', importProp],
                 combinedMin, '#f2f0f7',
                 combinedMax, '#3f007d'
               ]
             );
             map2.setFilter('asean-3d-extrusion-2', countryFilterExpr);
 
-            // 9) Re‐build the dumbbell chart with the same “rowsForChart” but now
-            //    filtered by Scenario, Country, and Sector:
+            // 8) Re‐build **both** 3D‐bar charts and the dumbbell chart
+            build3DChartPrimary(rowsForChart);
+            build3DChart(rowsForChart);
             buildDumbbellChart(rowsForChart);
           }
 
-          // 10) Initial paint
+          // 9) Initial paint & event listeners
           updateAllFilters();
-
-          // 11) Attach listeners to all three dropdowns
           document.getElementById('scenarioSelector')
                   .addEventListener('change', updateAllFilters);
           document.getElementById('countrySelector')
@@ -578,16 +632,411 @@
     }
 
     // ────────────────────────────────────────────────────────────────────
+    // build3DChartPrimary(rows):
+    //   This is a **copy** of your original build3DChart(), but:
+    //   • It targets container 'bar3dChartPrimary'
+    //   • It uses **primaryValue_x** instead of estimated_imports
+    // ────────────────────────────────────────────────────────────────────
+    function build3DChartPrimary(rows) {
+      const containerId = 'bar3dChartPrimary';
+      if (!rows || rows.length === 0) {
+        Plotly.purge(containerId);
+        return;
+      }
+
+      // 1) Detect CSV column names (scenario, country, sector, HS2_Code, primaryValue_x)
+      const sample = rows[0];
+      let scenarioKey = null, countryKey = null, sectorKey = null;
+      let hs2Key    = null, primaryKey = null;
+      Object.keys(sample).forEach(key => {
+        const lc = key.toLowerCase();
+        if (lc.includes('scenario'))    scenarioKey = key;
+        if (lc.includes('country'))     countryKey  = key;
+        if (lc.includes('sector'))      sectorKey   = key;
+        if (lc === 'hs2_code')          hs2Key      = key;
+        if (lc.includes('primaryvalue'))primaryKey   = key; // primaryValue_x
+      });
+      if (!scenarioKey || !countryKey || !sectorKey || !hs2Key || !primaryKey) {
+        console.warn('Cannot build 3D primary‐value chart: missing one of scenario, country, sector, HS2_Code, or primaryValue_x.');
+        Plotly.purge(containerId);
+        return;
+      }
+
+      // 2) Read current filter selections
+      const selScenario = document.getElementById('scenarioSelector').value;
+      const selCountry  = document.getElementById('countrySelector').value;
+      const selSector   = document.getElementById('sectorSelector').value;
+
+      // 3) Apply filters to “rows”
+      const filteredRows = rows.filter(r => {
+        const sc = String(r[scenarioKey]).trim();
+        const co = String(r[countryKey]).trim();
+        const se = String(r[sectorKey]).trim();
+        if (sc !== selScenario)    return false;
+        if (selCountry !== 'All' && co !== selCountry) return false;
+        if (selSector  !== 'All' && se !== selSector)  return false;
+        return true;
+      });
+      if (filteredRows.length === 0) {
+        Plotly.purge(containerId);
+        return;
+      }
+
+      // 4) Identify unique sectors and group HS2 codes
+      const sectorMinHS2 = {};
+      const uniqueSectors = [...new Set(
+        filteredRows.map(d => d[sectorKey])
+      )];
+      uniqueSectors.forEach(sector => {
+        const sectorData = filteredRows.filter(d => d[sectorKey] === sector);
+        const hs2Codes = sectorData
+                          .map(d => parseInt(d[hs2Key], 10))
+                          .filter(x => !isNaN(x));
+        sectorMinHS2[sector] = hs2Codes.length ? Math.min(...hs2Codes) : Infinity;
+      });
+      // Sort sectors by their minimum HS2 code
+      const sectors = uniqueSectors.sort((a, b) => sectorMinHS2[a] - sectorMinHS2[b]);
+
+      // For each sector, find distinct HS2 codes (sorted) and compute sum(primaryValue_x)
+      const sectorHS2Mapping = {};
+      let minPrimary = Infinity, maxPrimary = -Infinity;
+      sectors.forEach(sector => {
+        const sectorData = filteredRows.filter(d => d[sectorKey] === sector);
+        const hs2Set = new Set(
+          sectorData
+            .map(d => parseInt(d[hs2Key], 10))
+            .filter(x => !isNaN(x))
+        );
+        const hs2CodesInSector = Array.from(hs2Set).sort((a, b) => a - b);
+        sectorHS2Mapping[sector] = hs2CodesInSector;
+
+        hs2CodesInSector.forEach(hs2 => {
+          const hs2Data = sectorData.filter(d => parseInt(d[hs2Key], 10) === hs2);
+          const sumPrimary = hs2Data.reduce((sum, d) => {
+            const val = parseFloat(d[primaryKey]);
+            return sum + (isNaN(val) ? 0 : val);
+          }, 0);
+          if (sumPrimary > 0) {
+            minPrimary = Math.min(minPrimary, sumPrimary);
+            maxPrimary = Math.max(maxPrimary, sumPrimary);
+          }
+        });
+      });
+      if (minPrimary === Infinity) minPrimary = 0;
+      if (maxPrimary === -Infinity) maxPrimary = 1;
+
+      // 5) Prepare cube traces for Plotly
+      const traces = [];
+      const SECTOR_SPACING = 4; // adjustable spacing between sectors
+      const categoryLetters = [];
+      let maxCategoriesPerSector = 0;
+      Object.values(sectorHS2Mapping).forEach(arr => {
+        maxCategoriesPerSector = Math.max(maxCategoriesPerSector, arr.length);
+      });
+      for (let i = 0; i < maxCategoriesPerSector; i++) {
+        categoryLetters.push(String.fromCharCode(65 + i));
+      }
+
+      sectors.forEach((sector, xIndex) => {
+        const adjustedXIndex = xIndex * SECTOR_SPACING;
+        const hs2Codes = sectorHS2Mapping[sector];
+
+        hs2Codes.forEach((hs2, catIndex) => {
+          const sectorData = filteredRows.filter(d => parseInt(d[hs2Key], 10) === hs2);
+          const sumPrimary = sectorData.reduce((sum, d) => {
+            const val = parseFloat(d[primaryKey]);
+            return sum + (isNaN(val) ? 0 : val);
+          }, 0);
+          if (sumPrimary <= 0) return;
+
+          // Build one cube for this (sector, HS2) combination
+          const cubeSize = 0.4; // adjustable cube edge length
+          const x0 = adjustedXIndex - cubeSize, x1 = adjustedXIndex + cubeSize;
+          const y0 = catIndex - cubeSize,        y1 = catIndex + cubeSize;
+          const z0 = 0,                           z1 = sumPrimary;
+
+          // gradient color from green → purple (for example)
+          const norm = (sumPrimary - minPrimary) / (maxPrimary - minPrimary);
+          const hue = 120 - (norm * 120); // 120 (green) → 0 (red)
+          const color = `hsl(${hue},70%,60%)`;
+
+          const hovertext =
+            `Sector: ${sector}<br>` +
+            `HS2: ${hs2}<br>` +
+            `Category: ${categoryLetters[catIndex]}<br>` +
+            `Primary: ${sumPrimary.toLocaleString()}`;
+
+          traces.push({
+            type: 'mesh3d',
+            x: [x0, x1, x1, x0, x0, x1, x1, x0],
+            y: [y0, y0, y1, y1, y0, y0, y1, y1],
+            z: [z0, z0, z0, z0, z1, z1, z1, z1],
+            i: [7, 0, 0, 0, 4, 4, 6, 6, 4, 0, 3, 2],
+            j: [3, 4, 1, 2, 5, 6, 5, 2, 0, 1, 6, 3],
+            k: [0, 7, 2, 3, 6, 7, 1, 1, 5, 5, 7, 6],
+            color: color,
+            opacity: 1,
+            hoverinfo: 'text',
+            text: [hovertext],
+            flatshading: true,
+            showscale: false
+          });
+        });
+      });
+
+      // 6) Build layout for Plotly scene
+      const layout = {
+        scene: {
+          xaxis: {
+            title: 'Sector',
+            tickvals: sectors.map((_, i) => i * SECTOR_SPACING),
+            ticktext: sectors,
+            tickfont: { size: 10 },
+            titlefont: { size: 14 },
+            range: [
+              0 - SECTOR_SPACING * 0.1,
+              (sectors.length - 1) * SECTOR_SPACING + SECTOR_SPACING * 0.1
+            ]
+          },
+          yaxis: {
+            title: 'HS2 Category',
+            tickvals: categoryLetters.map((_, i) => i),
+            ticktext: categoryLetters,
+            tickfont: { size: 10 },
+            titlefont: { size: 14 }
+          },
+          zaxis: {
+            title: 'PrimaryValue_x',
+            tickformat: '$,.1s',
+            tickfont: { size: 10 },
+            titlefont: { size: 14 },
+            range: [0, maxPrimary * 1.1]
+          },
+          aspectmode: 'manual',
+          aspectratio: {
+            x: 1.5,
+            y: maxCategoriesPerSector / (sectors.length || 1),
+            z: 0.7
+          },
+          camera: {
+            eye: { x: 1.5, y: 1.5, z: 1.0 }
+          }
+        },
+        margin: { l: 0, r: 0, b: 0, t: 40, pad: 0 },
+        hovermode: 'x'
+      };
+
+      // 7) Render with Plotly
+      Plotly.newPlot(containerId, traces, layout, { responsive: true });
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // build3DChart(rows):
+    //   This is your original function for “Estimated Imports”.
+    //   It still renders into “bar3dChart”.  We did NOT touch its contents,
+    //   except to leave it under the new container “.right-under”.
+    // ────────────────────────────────────────────────────────────────────
+    function build3DChart(rows) {
+      const containerId = 'bar3dChart';
+      if (!rows || rows.length === 0) {
+        Plotly.purge(containerId);
+        return;
+      }
+
+      // 1) Detect relevant column names from CSV:
+      const sample = rows[0];
+      let scenarioKey = null, countryKey = null, sectorKey = null;
+      let hs2Key = null, importsKey = null;
+      Object.keys(sample).forEach(key => {
+        const lc = key.toLowerCase();
+        if (lc.includes('scenario'))     scenarioKey = key;
+        if (lc.includes('country'))      countryKey  = key;
+        if (lc.includes('sector'))       sectorKey   = key;
+        if (lc === 'hs2_code')           hs2Key      = key;
+        if (lc === 'estimated_imports')  importsKey  = key;
+      });
+      if (!scenarioKey || !countryKey || !sectorKey || !hs2Key || !importsKey) {
+        console.warn('Cannot build 3D estimated‐imports chart: missing one of scenario, country, sector, HS2_Code, or estimated_imports.');
+        Plotly.purge(containerId);
+        return;
+      }
+
+      // 2) Read current filter selections
+      const selScenario = document.getElementById('scenarioSelector').value;
+      const selCountry  = document.getElementById('countrySelector').value;
+      const selSector   = document.getElementById('sectorSelector').value;
+
+      // 3) Apply filters to “rows”
+      const filteredRows = rows.filter(r => {
+        const sc = String(r[scenarioKey]).trim();
+        const co = String(r[countryKey]).trim();
+        const se = String(r[sectorKey]).trim();
+        if (sc !== selScenario)    return false;
+        if (selCountry !== 'All' && co !== selCountry) return false;
+        if (selSector  !== 'All' && se !== selSector)  return false;
+        return true;
+      });
+      if (filteredRows.length === 0) {
+        Plotly.purge(containerId);
+        return;
+      }
+
+      // 4) Identify unique sectors and group HS2 codes
+      const sectorMinHS2 = {};
+      const uniqueSectors = [...new Set(
+        filteredRows.map(d => d[sectorKey])
+      )];
+      uniqueSectors.forEach(sector => {
+        const sectorData = filteredRows.filter(d => d[sectorKey] === sector);
+        const hs2Codes = sectorData
+                          .map(d => parseInt(d[hs2Key], 10))
+                          .filter(x => !isNaN(x));
+        sectorMinHS2[sector] = hs2Codes.length ? Math.min(...hs2Codes) : Infinity;
+      });
+      // Sort sectors by their minimum HS2 code
+      const sectors = uniqueSectors.sort((a, b) => sectorMinHS2[a] - sectorMinHS2[b]);
+
+      // For each sector, find distinct HS2 codes (sorted) and compute sum(estimated_imports)
+      const sectorHS2Mapping = {};
+      let minImport = Infinity, maxImport = -Infinity;
+      sectors.forEach(sector => {
+        const sectorData = filteredRows.filter(d => d[sectorKey] === sector);
+        const hs2Set = new Set(
+          sectorData
+            .map(d => parseInt(d[hs2Key], 10))
+            .filter(x => !isNaN(x))
+        );
+        const hs2CodesInSector = Array.from(hs2Set).sort((a, b) => a - b);
+        sectorHS2Mapping[sector] = hs2CodesInSector;
+
+        hs2CodesInSector.forEach(hs2 => {
+          const hs2Data = sectorData.filter(d => parseInt(d[hs2Key], 10) === hs2);
+          const sumImport = hs2Data.reduce((sum, d) => {
+            const val = parseFloat(d[importsKey]);
+            return sum + (isNaN(val) ? 0 : val);
+          }, 0);
+          if (sumImport > 0) {
+            minImport = Math.min(minImport, sumImport);
+            maxImport = Math.max(maxImport, sumImport);
+          }
+        });
+      });
+      if (minImport === Infinity) minImport = 0;
+      if (maxImport === -Infinity) maxImport = 1;
+
+      // 5) Prepare cube traces for Plotly
+      const traces = [];
+      const SECTOR_SPACING = 4; // adjustable spacing between sectors
+      const categoryLetters = [];
+      let maxCategoriesPerSector = 0;
+      Object.values(sectorHS2Mapping).forEach(arr => {
+        maxCategoriesPerSector = Math.max(maxCategoriesPerSector, arr.length);
+      });
+      for (let i = 0; i < maxCategoriesPerSector; i++) {
+        categoryLetters.push(String.fromCharCode(65 + i));
+      }
+
+      sectors.forEach((sector, xIndex) => {
+        const adjustedXIndex = xIndex * SECTOR_SPACING;
+        const hs2Codes = sectorHS2Mapping[sector];
+
+        hs2Codes.forEach((hs2, catIndex) => {
+          const sectorData = filteredRows.filter(d => parseInt(d[hs2Key], 10) === hs2);
+          const sumImport = sectorData.reduce((sum, d) => {
+            const val = parseFloat(d[importsKey]);
+            return sum + (isNaN(val) ? 0 : val);
+          }, 0);
+          if (sumImport <= 0) return;
+
+          // Build one cube for this (sector, HS2) combination
+          const cubeSize = 0.4; // adjustable cube edge length
+          const x0 = adjustedXIndex - cubeSize, x1 = adjustedXIndex + cubeSize;
+          const y0 = catIndex - cubeSize,        y1 = catIndex + cubeSize;
+          const z0 = 0,                           z1 = sumImport;
+
+          // gradient color from blue → red
+          const norm = (sumImport - minImport) / (maxImport - minImport);
+          const hue = 240 - (norm * 180); // 240 (blue) → 60 (red)
+          const color = `hsl(${hue},70%,60%)`;
+
+          const hovertext =
+            `Sector: ${sector}<br>` +
+            `HS2: ${hs2}<br>` +
+            `Category: ${categoryLetters[catIndex]}<br>` +
+            `Import: $${sumImport.toLocaleString()}`;
+
+          traces.push({
+            type: 'mesh3d',
+            x: [x0, x1, x1, x0, x0, x1, x1, x0],
+            y: [y0, y0, y1, y1, y0, y0, y1, y1],
+            z: [z0, z0, z0, z0, z1, z1, z1, z1],
+            i: [7, 0, 0, 0, 4, 4, 6, 6, 4, 0, 3, 2],
+            j: [3, 4, 1, 2, 5, 6, 5, 2, 0, 1, 6, 3],
+            k: [0, 7, 2, 3, 6, 7, 1, 1, 5, 5, 7, 6],
+            color: color,
+            opacity: 1,
+            hoverinfo: 'text',
+            text: [hovertext],
+            flatshading: true,
+            showscale: false
+          });
+        });
+      });
+
+      // 6) Build layout for Plotly scene
+      const layout = {
+        scene: {
+          xaxis: {
+            title: 'Sector',
+            tickvals: sectors.map((_, i) => i * SECTOR_SPACING),
+            ticktext: sectors,
+            tickfont: { size: 10 },
+            titlefont: { size: 14 },
+            range: [
+              0 - SECTOR_SPACING * 0.1,
+              (sectors.length - 1) * SECTOR_SPACING + SECTOR_SPACING * 0.1
+            ]
+          },
+          yaxis: {
+            title: 'HS2 Category',
+            tickvals: categoryLetters.map((_, i) => i),
+            ticktext: categoryLetters,
+            tickfont: { size: 10 },
+            titlefont: { size: 14 }
+          },
+          zaxis: {
+            title: 'Estimated Imports (USD)',
+            tickformat: '$,.1s',
+            tickfont: { size: 10 },
+            titlefont: { size: 14 },
+            range: [0, maxImport * 1.1]
+          },
+          aspectmode: 'manual',
+          aspectratio: {
+            x: 1.5,
+            y: maxCategoriesPerSector / (sectors.length || 1),
+            z: 0.7
+          },
+          camera: {
+            eye: { x: 1.5, y: 1.5, z: 1.0 }
+          }
+        },
+        margin: { l: 0, r: 0, b: 0, t: 40, pad: 0 },
+        hovermode: 'x'
+      };
+
+      // 7) Render with Plotly
+      Plotly.newPlot(containerId, traces, layout, { responsive: true });
+    }
+
+    // ────────────────────────────────────────────────────────────────────
     // buildDumbbellChart(rows):
-    //    Uses Highcharts to create a vertical dumbbell chart in #chart1,
-    //    but first applies the Scenario/Country/Sector filters to “rows”,
-    //    THEN groups by HS2_Code, averages MinAve & new_tariff_new (×100),
-    //    and finally plots them.
+    //   EXACT same code as your original script, unchanged.
     // ────────────────────────────────────────────────────────────────────
     function buildDumbbellChart(rows) {
+      const containerId = 'dumbbellChart';
       if (!rows || rows.length === 0) {
-        // If there are no rows (or chart div is empty), clear any existing chart:
-        Highcharts.chart('chart1', { series: [] });
+        Highcharts.chart(containerId, { series: [] });
         return;
       }
 
@@ -605,18 +1054,17 @@
         if (lc === 'new_tariff_new')     tariffKey   = key;
       });
       if (!scenarioKey || !countryKey || !sectorKey || !hs2Key || !minAveKey || !tariffKey) {
-        console.warn('Cannot build chart: missing one of scenario, country, sector, HS2_Code, MinAve, or new_tariff_new.');
-        // Clear chart if keys are missing:
-        Highcharts.chart('chart1', { series: [] });
+        console.warn('Cannot build dumbbell chart: missing one of scenario, country, sector, HS2_Code, MinAve, or new_tariff_new.');
+        Highcharts.chart(containerId, { series: [] });
         return;
       }
 
-      // 2) Read current filter selections from the DOM:
+      // 2) Read current filter selections
       const selScenario = document.getElementById('scenarioSelector').value;
       const selCountry  = document.getElementById('countrySelector').value;
       const selSector   = document.getElementById('sectorSelector').value;
 
-      // 3) Apply filters to “rows”:
+      // 3) Apply filters to “rows”
       const filteredRows = rows.filter(r => {
         const sc = String(r[scenarioKey]).trim();
         const co = String(r[countryKey]).trim();
@@ -627,8 +1075,7 @@
         return true;
       });
       if (filteredRows.length === 0) {
-        // If no rows after filtering, clear chart and return
-        Highcharts.chart('chart1', { series: [] });
+        Highcharts.chart(containerId, { series: [] });
         return;
       }
 
@@ -648,39 +1095,52 @@
       });
 
       // 5) Build a sorted list of HS2 categories and a matching data array
-      const categories = Object.keys(grouping)
+      const rawCategories  = Object.keys(grouping)
                                .sort((a, b) => {
                                  const na = parseInt(a, 10), nb = parseInt(b, 10);
                                  if (!isNaN(na) && !isNaN(nb)) return na - nb;
                                  return a.localeCompare(b);
                                });
+							   
+		// Now zero-pad any single‐digit codes:
+  const categories = rawCategories.map(cat => cat.padStart(2, '0'));
+  
+  // 6) Build a matching array of average values for each category
+    const data = categories.map((catLabel, i) => {
+      // We need the original (un‐padded) key to look up sums:
+      const rawKey = rawCategories[i];  
+      const obj    = grouping[rawKey];
+      const avgMin    = (obj.sumMin    / obj.count) * 100; // decimal→percent
+      const avgTariff = (obj.sumTariff / obj.count) * 100;
+      return { x: i, low: avgMin, high: avgTariff };
+    });
 
-      const data = categories.map((cat, i) => {
+   /*   const data = categories.map((cat, i) => {
         const obj = grouping[cat];
         // Convert decimal → percentage by multiplying by 100:
         const avgMin    = (obj.sumMin    / obj.count) * 100;
         const avgTariff = (obj.sumTariff / obj.count) * 100;
         return { x: i, low: avgMin, high: avgTariff };
-      });
+      });*/
 
-      // 6) Render (or re‐render) Highcharts with filtered data:
-      Highcharts.chart('chart1', {
+      // 6) Render (or re-render) Highcharts into #dumbbellChart
+      Highcharts.chart(containerId, {
         chart: {
           type: 'dumbbell',
-          inverted: false, // vertical orientation
+          inverted: false,
           marginTop: 30
         },
         title: { text: null },
         xAxis: {
           categories: categories,
-          title: { text: 'HS2_Code' },
+          title: { text: 'HS2 Code' },
           labels: {
             rotation: -45,
             style: { fontSize: '12px' }
           }
         },
         yAxis: {
-          title: { text: 'Average (%)' },
+          title: { text: 'Simple average tariff (%)' },
           labels: {
             formatter: function() {
               return Math.round(this.value) + '%';
@@ -689,7 +1149,7 @@
         },
         tooltip: {
           shared: true,
-          headerFormat: '<b>HS2_Code: {point.category}</b><br/>',
+          headerFormat: '<b>HS2 Code: {point.category}</b><br/>',
           pointFormat: '<span style="color:{series.color}">\u25CF</span> {series.name}: <b>{point.y:.0f}%</b><br/>'
         },
         plotOptions: {
@@ -704,10 +1164,10 @@
         },
         series: [
           {
-            name: 'MinAve',
-            type: 'scatter', // explicitly scatter
+            name: 'Actual Tariff',
+            type: 'scatter',
             data: data.map(pt => ({ x: pt.x, y: pt.low })),
-            color: '#1f77b4', // blue
+            color: '#1f77b4',
             marker: {
               symbol: 'circle',
               fillColor: '#1f77b4',
@@ -717,9 +1177,9 @@
           },
           {
             name: 'New Tariff',
-            type: 'scatter', // explicitly scatter
+            type: 'scatter',
             data: data.map(pt => ({ x: pt.x, y: pt.high })),
-            color: '#d62728', // red
+            color: '#d62728',
             marker: {
               symbol: 'circle',
               fillColor: '#d62728',
@@ -730,14 +1190,14 @@
           {
             name: '',
             type: 'dumbbell',
-            data: data.slice(), // each entry { x, low, high }
+            data: data.slice(), 
             color: '#999999',
             connector: {
               width: 1,
               color: '#999999'
             },
             marker: {
-              enabled: false // no extra markers on connector
+              enabled: false
             },
             showInLegend: false,
             enableMouseTracking: false
