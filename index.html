@@ -463,18 +463,23 @@ if (lc.includes('sector')) sectorKey = key;
  if (lc.includes('scenario'))  scenarioKey = key;
   });
 
-  if (!tradeLossKey) return;
+ if (!tradeLossKey || !countryKey || !sectorKey || !scenarioKey) return;
 
   const selCountry = getSelectedCountry();
   const selSector = getSelectedSector();
+  const selScenario = document.getElementById('scenarioSelector').value;
 
   const totalLoss = rows.reduce((sum, row) => {
     // Apply filters
+    const scenario = String(row[scenarioKey]).trim();
     const country = String(row[countryKey]).trim();
     const sector = String(row[sectorKey]).trim();
     if (selCountry !== 'All' && country !== selCountry) return sum;
     if (selSector !== 'All' && sector !== selSector) return sum;
     
+       if (scenario !== selScenario) return sum;
+    if (selCountry !== 'All' && country !== selCountry) return sum;
+    if (selSector  !== 'All' && sector  !== selSector)  return sum;
     const val = parseFloat(row[tradeLossKey]) || 0;
     return sum + val;
   }, 0);
